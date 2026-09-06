@@ -209,6 +209,41 @@ function clickTile(index){
 }
 function buyUpgrade(){ const cost=getCost(); if(!nGte(coins,cost)) return; coins=nSub(coins,cost);upgradeTier++; const spawn=getSpawnTier(); grid.forEach((x,i)=>{if(x>0&&x<spawn)grid[i]=spawn;}); fillBoard();save();render(); }
 function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};upgradeTier=0;grid=Array(64).fill(1);selected=null;maxTileInRun=1; fillBoard();save();render(); }
+async function safeResetBestTile() {
+  // 1. Reset local state immediately
+  bestTileAllTime = 1;
+  maxTileInRun = 1;
+  
+  // 2. Update localStorage
+  localStorage.setItem("micronym_best", "1");
+  localStorage.setItem("micronym_run_best", "1");
+  
+  // 3. Get current user session
+  const { data } = await sb.auth.getSession();
+  const session = data?.session;
+  
+  // 4. Update cloud save if logged in
+  if (session) {
+    try {
+      await sb.from('player_saves').upsert({
+        user_id: session.user.id,
+        best_tile_all_time: 1,
+        max_tile: 1,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      
+      console.log("✅ Best tile reset to 1 locally and in cloud!");
+    } catch (err) {
+      console.error("Cloud reset failed:", err);
+      alert("Local reset successful, but cloud sync failed. Your next auto-save will fix it.");
+    }
+  } else {
+    console.log("✅ Best tile reset to 1 locally (not logged in)");
+  }
+  
+  // 5. Refresh UI
+  render();
+}
 function escapeHTML(text){ return String(text).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
 
 function render(){
@@ -355,14 +390,34 @@ async function throttledAutoSubmit() {
 async function loadWorldLeaderboard() {
   const listEl = document.getElementById("worldLeaderboardList");
   listEl.innerHTML = "<p>Loading...</p>";
-  const { data, error } = await sb.from("leaderboard").select("username,best_tile").order("best_tile", { ascending: false }).limit(20);
-  if (error || !data) { listEl.innerHTML = "<p>Error loading leaderboard</p>"; return; }
-  if (!data.length) { listEl.innerHTML = "<p>No scores yet. Be the first!</p>"; return; }
+  
+  // ✅ FIX: Removed .single() - this returns an ARRAY of up to 20 entries
+  const { data, error } = await sb
+    .from("leaderboard")
+    .select("username, best_tile")
+    .order("best_tile", { ascending: false })
+    .limit(20);
+
+  if (error) { 
+    console.error("Leaderboard fetch error:", error);
+    listEl.innerHTML = "<p>Error loading leaderboard</p>"; 
+    return; 
+  }
+  
+  // Handle empty table gracefully (no error, just no data)
+  if (!data || data.length === 0) { 
+    listEl.innerHTML = "<p>No scores yet. Be the first!</p>"; 
+    return; 
+  }
+
+  console.log("LEADERBOARD RAW DATA:", data);
+
   let html = "";
   data.forEach((entry, i) => {
     const rank = i + 1;
     const medal = rank === 1 ? "" : rank === 2 ? "" : rank === 3 ? "" : "#" + rank;
-    html += '<div class="lb-entry"><span>' + medal + " " + escapeHTML(entry.username) + '</span><span>Tier ' + entry.best_tile + "</span></div>";
+    // Number() ensures correct display even if DB returns string
+    html += '<div class="lb-entry"><span>' + medal + " " + escapeHTML(entry.username) + '</span><span>Tier ' + Number(entry.best_tile) + "</span></div>";
   });
   listEl.innerHTML = html;
 }
