@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Micronym Merge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing:border-box; }
+html,body { margin:0; width:100%; min-height:100%; font-family:'Inter',sans-serif!important; user-select:none; }
+body { background: hsl(calc(240deg + var(--tier) - 1deg), 100%, 50%); color:rgba(255,255,255,0.858); font-weight:700; display:flex; flex-direction:column; align-items:center; padding:25px; }
+#s { font-size:30px; letter-spacing:2px; margin-bottom:5px; text-align:center; }
+#p { color:#33ff00; font-size:16px; margin-bottom:15px; letter-spacing:1px; animation:blink 1.5s infinite; text-align:center; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+.controls { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:20px; }
+button,input { padding:10px 15px; font-weight:700; font-size:14px; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; transition:.15s; font-family:inherit; }
+input { background:#282833; color:white; outline:none; min-width:180px; text-align:center; }
+input:focus { box-shadow:0 0 0 2px #981eef; }
+#uBtn { background:#981eef; color:#1c1c24; }
+#resetBtn { background:#ff4757; color:white; }
+#authBtn { background:#33ff00; color:#1c1c24; }
+button:hover:not(:disabled) { transform:scale(1.04); }
+button:active:not(:disabled) { transform:scale(.96); }
+#uBtn:disabled { opacity:.45; cursor:not-allowed; }
+#g { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; background:#1c1c24; padding:15px; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,.4); width:100%; max-width:1200px; }
+.tile { width:100%; aspect-ratio:1/1; border-radius:0; padding:0; cursor:pointer; overflow:hidden; position:relative; transition:transform .12s,filter .12s,box-shadow .12s; }
+.tile:hover { transform:scale(1.025); filter:brightness(1.1); }
+.tile.empty { background:#282833; cursor:default; }
+.tile.selected { transform:scale(.9); outline:3px solid white; outline-offset:-3px; }
+.leaderboard { margin-top:20px; background:#1c1c24; padding:16px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,.3); width:100%; max-width:360px; text-align:center; color:white; font-size:14px; }
+.leaderboard h3 { margin:0 0 12px; color:#f7b731; font-size:16px; letter-spacing:1px; }
+.lb-entry { padding:8px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }
+.lb-entry:last-child { border-bottom:none; }
+#authError { color:#ff4757; font-size:12px; margin-top:8px; min-height:16px; }
+#submitStatus { color:#33ff00; font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div id="s">MONETY: 0<br>You get 0 coin(s) per second</div>
+<div id="p">SPAWN KAFELKÓW: TIER 1</div>
+<div class="controls">
+  <button id="uBtn" onclick="buyUpgrade()">+1 BASE BLOCK</button>
+  <button id="resetBtn" onclick="resetGame()">RESET RUN</button>
+</div>
+<select id="notationSelect" style="padding:10px;border-radius:8px;font-weight:700;margin-bottom:20px;">
+  <option value="scientific">Scientific (default)</option>
+  <option value="roman">Roman</option>
+  <option value="chemical">Chemical</option>
+</select>
+<div id="g"></div>
+
+<div class="leaderboard">
+  <h3>🌍 WORLD LEADERBOARD</h3>
+  <div id="authSection">
+    <input type="text" id="usernameInput" placeholder="Choose Username (3-15 chars)" maxlength="15" />
+    <button id="authBtn" onclick="handleAnonymousAuth()">PLAY AS THIS NAME</button>
+    <div id="authError"></div>
+  </div>
+  <div id="scoreSection" style="display:none;">
+    <p>Playing as: <strong id="currentUsername"></strong></p>
+    <div id="submitStatus"></div>
+  </div>
+  <div id="worldLeaderboardList" style="margin-top:12px;text-align:left;"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fvfiximzwatnhptdmfnp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2Zml4aW16d2F0bmhwdGRtZm5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTE5MDUsImV4cCI6MjEwNDI2NzkwNX0.PNCGc44GCVvaLwRJ0DnxlfBzV2-IKk-c0UyvPlbQRMM';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let lastSubmitTime = 0;
+const SUBMIT_COOLDOWN = 60000;
+let autoSubmitInterval = null;
+
+const BAD_WORDS = ['ass','bastard','bitch','cock','crap','damn','dick','fuck','hell','nigger','penis','piss','shit','slut','whore'];
+function containsProfanity(text) {
+  const lower = text.toLowerCase().trim();
+  for (const word of BAD_WORDS) { if (lower.includes(word)) return true; }
+  const leetMap = {'a':/[a@4]/g,'e':/[e3]/g,'i':/[i1!]/g,'o':/[o0]/g,'s':/[s$5]/g};
+  let normalized = lower;
+  for (const [letter, regex] of Object.entries(leetMap)) { normalized = normalized.replace(regex, letter); }
+  for (const word of BAD_WORDS) { if (normalized.includes(word)) return true; }
+  return false;
+}
+function isValidUsername(username) {
+  if (!username || username.length < 3 || username.length > 15) return false;
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) return false;
+  if (containsProfanity(username)) return false;
+  return true;
+}
+
+class Roman {
+  constructor() {
+    this.z = 4e9; this.B = Math.log10(this.z);
+    this.frac = ["","·",":","∴","∷","","S","S·","S:","S∴","S∷","S⁙"];
+    this.F = [[1e9,"M̿"],[9e8,"C̿M̿"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],[9e7,"X̿C"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],[4e6,"M̄V"],[1e6,"M̄"],[9e5,"C̄M̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],[9e4,"X̄C"],[5e4,"L̄"],[4e4,"X̄L"],[1e4,"X̄"],[9e3,"M̄X̄"],[5e3,"V̄"],[4e3,"MV"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  }
+  romanize(t) {
+    let out = "";
+    for (const [value, symbol] of this.F) { while (t >= value) { out += symbol; t -= value; } }
+    let a = Math.round(1.2 * Math.floor(10 * t));
+    if (a === 0) return out === "" ? "nulla" : out;
+    return out + this.frac[a];
+  }
+  formatDecimal(n) {
+    const value = n.m * Math.pow(10, n.e);
+    if (value < this.z) return this.romanize(value);
+    const log10 = Math.log10(n.m) + n.e;
+    const N = log10 / this.B;
+    const r = Math.pow(this.z, N - Math.floor(N));
+    return this.romanize(r) + "↑" + this.formatDecimal({m:N,e:0});
+  }
+}
+class Chemical {
+  static formatChemicalNumber(value) {
+    if (value == null) return "0.00";
+    let exponent = Number(value.e ?? value.exponent);
+    let mantissa = Number(value.m ?? value.mantissa);
+    if (!Number.isFinite(exponent) || !Number.isFinite(mantissa)) {
+      const logarithm = typeof value.log10 === "function" ? Number(value.log10()) : NaN;
+      if (!Number.isFinite(logarithm)) return "0.00";
+      exponent = Math.floor(logarithm); mantissa = Math.pow(10, logarithm - exponent);
+    }
+    if (mantissa === 0) return "0.00";
+    const step = Math.floor(exponent / 3);
+    const scaledMantissa = mantissa * Math.pow(10, exponent - step * 3);
+    let suffix = "";
+    if (step >= 1 && step <= Chemical.chemicalElements.length) suffix = Chemical.chemicalElements[step - 1];
+    else if (step > Chemical.chemicalElements.length) {
+      let index = step - Chemical.chemicalElements.length - 1;
+      const base = Chemical.chemicalElements.length;
+      suffix = Chemical.chemicalElements[Math.floor(index/base)] + "-" + Chemical.chemicalElements[index % base];
+    }
+    return scaledMantissa.toFixed(2) + (suffix ? " " + suffix : "");
+  }
+}
+Chemical.chemicalElements = ["H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
+
+let notationMode = "scientific";
+const RomanFormatter = new Roman();
+function fNumRouter({m,e}) {
+  if (notationMode === "roman") return RomanFormatter.formatDecimal({m,e});
+  if (notationMode === "chemical") return Chemical.formatChemicalNumber({m,e});
+  return fNum({m,e});
+}
+
+// ✅ FIXED: Async initialization with proper awaits
+document.addEventListener("DOMContentLoaded", async () => {
+  const sel = document.getElementById("notationSelect");
+  if (sel) sel.addEventListener("change", e => { notationMode = e.target.value; render(); });
+  await updateAuthUI();
+  await loadWorldLeaderboard();
+  sb.auth.onAuthStateChange(async () => {
+    await updateAuthUI();
+    await loadWorldLeaderboard();
+  });
+});
+
+const nNew=(m,e)=>{if(m===0)return{m:0,e:0};const c=Math.floor(Math.log10(Math.abs(m)));return{m:m/Math.pow(10,c),e:e+c};};
+const nAdd=(a,b)=>{if(a.m===0)return b;if(b.m===0)return a;const d=a.e-b.e;if(d>15)return a;if(d<-15)return b;return nNew(a.m*Math.pow(10,d)+b.m,b.e);};
+const nSub=(a,b)=>{const d=a.e-b.e;if(d>15)return a;if(d<-15)return nNew(-b.m,b.e);return nNew(a.m*Math.pow(10,d)-b.m,b.e);};
+const nGte=(a,b)=>{if(a.e!==b.e)return a.e>b.e;return a.m>=b.m;};
+const nPow=(base,exponent)=>{if(exponent===0)return{m:1,e:0};const t=exponent*Math.log10(base);const e=Math.floor(t);return nNew(Math.pow(10,t-e),e);};
+const fNum=n=>{if(n.m===0)return"0";if(n.e<4)return Math.floor(n.m*Math.pow(10,n.e)).toString();return n.m.toFixed(2)+"e"+n.e;};
+
+let coins={m:0,e:0};
+let upgradeTier=parseInt(localStorage.getItem("micronym_upgrade"))||0;
+let grid=Array(64).fill(1);
+try { const savedGrid=JSON.parse(localStorage.getItem("micronym_grid")); if(Array.isArray(savedGrid)&&savedGrid.length===64&&savedGrid.every(t=>Number.isInteger(t)&&t>=0)) grid=savedGrid; } catch(e){}
+let selected=null;
+let maxTileInRun=parseInt(localStorage.getItem("micronym_run_best"))||1;
+let bestTileAllTime=parseInt(localStorage.getItem("micronym_best"))||maxTileInRun;
+try { const savedCoins=localStorage.getItem("micronym_coins"); if(savedCoins){const parts=savedCoins.split("e");if(parts.length===2)coins=nNew(parseFloat(parts[0]),parseInt(parts[1]));} } catch(e){}
+let Income={m:0,e:0};
+
+function getBase(){ return Math.max(3.01); }
+function getCost(){ const power=nPow(getBase(),upgradeTier); const level=Math.max(1,upgradeTier); const divisor=Math.max(1,Math.log(level*Math.log(level+Math.pow(11,Math.log10(level)))+1)); return nNew(power.m*10000/divisor,power.e); }
+function getSpawnTier(){ return upgradeTier+1; }
+function save(){ localStorage.setItem("micronym_coins",coins.m+"e"+coins.e); localStorage.setItem("micronym_upgrade",upgradeTier); localStorage.setItem("micronym_grid",JSON.stringify(grid)); localStorage.setItem("micronym_run_best",maxTileInRun); localStorage.setItem("micronym_best",bestTileAllTime); }
+function fillBoard(){ const spawn=getSpawnTier(); grid.forEach((x,i)=>{ if(x===0) grid[i]=spawn; if(grid[i]>maxTileInRun) maxTileInRun=grid[i]; }); if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; }
+
+let mergeAllCooldown=false;
+function mergeAll(){
+  if(mergeAllCooldown) return; mergeAllCooldown=true; let merged=true;
+  while(merged){ merged=false; outer:for(let a=0;a<grid.length;a++){ if(grid[a]===0) continue; for(let b=a+1;b<grid.length;b++){ if(grid[b]===grid[a]&&grid[b]>0){ const next=grid[a]+1; grid[a]=0;grid[b]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; merged=true;break outer; } } } }
+  selected=null;fillBoard();save();render(); setTimeout(()=>{mergeAllCooldown=false;},10000);
+}
+document.addEventListener("keydown",(e)=>{ if(e.key.toLowerCase()==="m"&&!e.repeat) mergeAll(); });
+
+function clickTile(index){
+  const from=selected;const to=grid[index];
+  if(from===null){if(to>0)selected=index;render();return;}
+  if(from===index){selected=null;render();return;}
+  if(from!==null&&grid[from]===to&&to>0){ const next=grid[from]+1; grid[from]=0;grid[index]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; selected=null;fillBoard();save();render();return; }
+  if(to===0){grid[index]=grid[from];grid[from]=0;selected=null;save();render();return;}
+  selected=to>0?index:null;render();
+}
+function buyUpgrade(){ const cost=getCost(); if(!nGte(coins,cost)) return; coins=nSub(coins,cost);upgradeTier++; const spawn=getSpawnTier(); grid.forEach((x,i)=>{if(x>0&&x<spawn)grid[i]=spawn;}); fillBoard();save();render(); }
+function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};upgradeTier=0;grid=Array(64).fill(1);selected=null;maxTileInRun=1; fillBoard();save();render(); }
+function escapeHTML(text){ return String(text).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
+
+function render(){
+  const spawn=getSpawnTier();const cost=getCost();
+  document.body.style.background="hsl("+(bestTileAllTime-1)+", 35%, 50%)";
+  document.getElementById("s").innerText="Coins: "+fNumRouter(coins)+"\nYou get "+fNumRouter(Income)+" coin(s) per second.";
+  document.getElementById("p").innerText="SPAWN KAFELKÓW: TIER "+spawn;
+  const uBtn=document.getElementById("uBtn"); uBtn.innerText="+1 BASE BLOCK (KOSZT: "+fNumRouter(cost)+")"; uBtn.disabled=!nGte(coins,cost);
+  const board=document.getElementById("g");board.innerHTML="";
+  grid.forEach(function(tileValue,index){
+    const tile=document.createElement("div");tile.className="tile";
+    if(tileValue===0){tile.classList.add("empty");}
+    else{
+      if(selected===index) tile.classList.add("selected");
+      const tier=tileValue; const fileNum=Math.floor((tier-1)/100)+1; const localIdx=(tier-1)%100; const col=localIdx%10; const row=Math.floor(localIdx/10);
+      const displayWidth=tile.offsetWidth||128; const scale=displayWidth/256;
+      const mask=document.createElement("div"); mask.style.width=(256*scale)+"px";mask.style.height=(256*scale)+"px"; mask.style.overflow="hidden";mask.style.borderRadius="12px"; mask.style.position="absolute";mask.style.top="50%";mask.style.left="50%"; mask.style.transform="translate(-50%,-50%)";
+      const img=document.createElement("div"); img.style.width=(2560*scale)+"px";img.style.height="auto";img.style.aspectRatio="1/1"; img.style.backgroundImage="url('barrels"+fileNum+".png')"; img.style.backgroundSize=(2560*scale)+"px auto"; img.style.backgroundPosition=Math.round(-col*256*scale)+"px "+Math.round(-row*256*scale)+"px";
+      // ✅ NO imageRendering="pixelated" — smooth scaling only
+      mask.appendChild(img);tile.appendChild(mask);
+    }
+    tile.onclick=(function(i){return function(){clickTile(i);};})(index); board.appendChild(tile);
+  });
+}
+
+setInterval(()=>{ let newIncome={m:0,e:0}; grid.forEach(tier=>{if(tier>0)newIncome=nAdd(newIncome,nPow(3,tier));}); Income=nNew(newIncome.m,newIncome.e); coins=nAdd(coins,Income); },1000);
+setInterval(()=>{render();},1000);
+
+// ✅ FIXED: All auth functions are now properly async/await
+async function handleAnonymousAuth() {
+  const username = document.getElementById("usernameInput").value.trim();
+  const errorEl = document.getElementById("authError");
+  errorEl.textContent = "";
+  if (!isValidUsername(username)) {
+    errorEl.textContent = "Invalid username. Must be 3-15 alphanumeric characters (no profanity).";
+    return;
+  }
+  const { data, error } = await sb.auth.signInAnonymously({ options: { data: { username: username } } });
+  if (error) { errorEl.textContent = "Failed: " + error.message; }
+  else { await updateAuthUI(); await loadWorldLeaderboard(); }
+}
+
+async function updateAuthUI() {
+  const { data } = await sb.auth.getSession();
+  const session = data?.session;
+  const authSec = document.getElementById("authSection");
+  const scoreSec = document.getElementById("scoreSection");
+  const unameSpan = document.getElementById("currentUsername");
+  if (session) {
+    const username = session.user.user_metadata?.username || "Unknown";
+    authSec.style.display = "none";
+    scoreSec.style.display = "block";
+    unameSpan.textContent = escapeHTML(username);
+    if (!autoSubmitInterval) {
+      autoSubmitInterval = setInterval(throttledAutoSubmit, 10000);
+      throttledAutoSubmit();
+    }
+  } else {
+    authSec.style.display = "block";
+    scoreSec.style.display = "none";
+    if (autoSubmitInterval) { clearInterval(autoSubmitInterval); autoSubmitInterval = null; }
+  }
+}
+
+async function throttledAutoSubmit() {
+  const { data } = await sb.auth.getSession();
+  const session = data?.session;
+  if (!session) return;
+  if (Date.now() - lastSubmitTime < SUBMIT_COOLDOWN) return;
+  const currentBest = bestTileAllTime;
+  const lastSubmittedBest = parseInt(localStorage.getItem("micronym_last_submitted_best") || "0");
+  if (currentBest <= lastSubmittedBest) return;
+  const username = session.user.user_metadata?.username;
+  if (!username || !isValidUsername(username)) return;
+  const statusEl = document.getElementById("submitStatus");
+  statusEl.textContent = "Submitting...";
+  const { error } = await sb.from("leaderboard").upsert([{
+    user_id: session.user.id, username: username,
+    best_tile: currentBest, coins_m: coins.m, coins_e: coins.e
+  }], { onConflict: "user_id" });
+  if (!error) {
+    lastSubmitTime = Date.now();
+    localStorage.setItem("micronym_last_submitted_best", currentBest.toString());
+    statusEl.textContent = "✅ Score synced! Next auto-submit in ~" + Math.ceil((SUBMIT_COOLDOWN - (Date.now() - lastSubmitTime)) / 1000) + "s";
+    await loadWorldLeaderboard();
+  } else {
+    statusEl.textContent = "❌ Submit failed: " + error.message;
+  }
+}
+
+async function loadWorldLeaderboard() {
+  const listEl = document.getElementById("worldLeaderboardList");
+  listEl.innerHTML = "<p>Loading...</p>";
+  const { data, error } = await sb.from("leaderboard").select("username,best_tile").order("best_tile", { ascending: false }).limit(20);
+  if (error || !data) { listEl.innerHTML = "<p>Error loading leaderboard</p>"; return; }
+  if (!data.length) { listEl.innerHTML = "<p>No scores yet. Be the first!</p>"; return; }
+  let html = "";
+  data.forEach((entry, i) => {
+    const rank = i + 1;
+    const medal = rank === 1 ? "" : rank === 2 ? "" : rank === 3 ? "🥉" : "#" + rank;
+    html += '<div class="lb-entry"><span>' + medal + " " + escapeHTML(entry.username) + '</span><span>Tier ' + entry.best_tile + "</span></div>";
+  });
+  listEl.innerHTML = html;
+}
+
+if (grid.every(v => v === 0)) fillBoard();
+save();
+render();
+</script>
+</body>
+</html>
