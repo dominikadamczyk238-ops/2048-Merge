@@ -124,7 +124,7 @@ let bestTileAllTime=parseInt(localStorage.getItem("micronym_best"))||maxTileInRu
 try { const savedCoins=localStorage.getItem("micronym_coins"); if(savedCoins){const parts=savedCoins.split("e");if(parts.length===2)coins=nNew(parseFloat(parts[0]),parseInt(parts[1]));} } catch(e){}
 let Income={m:0,e:0};
 
-function getBase(){ return Math.max(3.01); }
+function getBase(){ return Math.max(3.02); }
 function getCost(){ const power=nPow(getBase(),upgradeTier); const level=Math.max(1,upgradeTier); const divisor=Math.max(1,Math.log(level*Math.log(level+Math.pow(11,Math.log10(level)))+1)); return nNew(power.m*10000/divisor,power.e); }
 function getSpawnTier(){ return upgradeTier+1; }
 function saveLocal(){ localStorage.setItem("micronym_coins",coins.m+"e"+coins.e); localStorage.setItem("micronym_upgrade",upgradeTier); localStorage.setItem("micronym_grid",JSON.stringify(grid)); localStorage.setItem("micronym_run_best",maxTileInRun); localStorage.setItem("micronym_best",bestTileAllTime); }
