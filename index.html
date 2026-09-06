@@ -1,41 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Micronym Merge</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-* { box-sizing:border-box; }
-html,body { margin:0; width:100%; min-height:100%; font-family:'Inter',sans-serif!important; user-select:none; }
-body { background: hsl(calc(240deg + var(--tier) - 1deg), 100%, 50%); color:rgba(255,255,255,0.858); font-weight:700; display:flex; flex-direction:column; align-items:center; padding:25px; }
-#s { font-size:30px; letter-spacing:2px; margin-bottom:5px; text-align:center; }
-#p { color:#33ff00; font-size:16px; margin-bottom:15px; letter-spacing:1px; animation:blink 1.5s infinite; text-align:center; }
-@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.5;} }
-.controls { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-bottom:20px; }
-button,input { padding:10px 15px; font-weight:700; font-size:14px; border:none; border-radius:8px; cursor:pointer; letter-spacing:1px; transition:.15s; font-family:inherit; }
-input { background:#282833; color:white; outline:none; min-width:180px; text-align:center; }
-input:focus { box-shadow:0 0 0 2px #981eef; }
-#uBtn { background:#981eef; color:#1c1c24; }
-#resetBtn { background:#ff4757; color:white; }
-#authBtn { background:#33ff00; color:#1c1c24; }
-button:hover:not(:disabled) { transform:scale(1.04); }
-button:active:not(:disabled) { transform:scale(.96); }
-#uBtn:disabled { opacity:.45; cursor:not-allowed; }
-#g { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; background:#1c1c24; padding:15px; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,.4); width:100%; max-width:1200px; }
-.tile { width:100%; aspect-ratio:1/1; border-radius:0; padding:0; cursor:pointer; overflow:hidden; position:relative; transition:transform .12s,filter .12s,box-shadow .12s; }
-.tile:hover { transform:scale(1.025); filter:brightness(1.1); }
-.tile.empty { background:#282833; cursor:default; }
-.tile.selected { transform:scale(.9); outline:3px solid white; outline-offset:-3px; }
-.leaderboard { margin-top:20px; background:#1c1c24; padding:16px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,.3); width:100%; max-width:360px; text-align:center; color:white; font-size:14px; }
-.leaderboard h3 { margin:0 0 12px; color:#f7b731; font-size:16px; letter-spacing:1px; }
-.lb-entry { padding:8px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; }
-.lb-entry:last-child { border-bottom:none; }
-#authError { color:#ff4757; font-size:12px; margin-top:8px; min-height:16px; }
-#submitStatus { color:#33ff00; font-size:12px; margin-top:8px; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Micronym Merge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; min-height: 100%; font-family: 'Inter', sans-serif !important; user-select: none; }
+    body { background: hsl(calc(240deg + var(--tier) - 1deg), 100%, 50%); color: rgba(255,255,255,0.858); font-weight: 700; display: flex; flex-direction: column; align-items: center; padding: 25px; }
+    #s { font-size: 30px; letter-spacing: 2px; margin-bottom: 5px; text-align: center; }
+    #p { color: #33ff00; font-size: 16px; margin-bottom: 15px; letter-spacing: 1px; animation: blink 1.5s infinite; text-align: center; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
+    button, input { padding: 10px 15px; font-weight: 700; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 1px; transition: .15s; font-family: inherit; }
+    input { background: #282833; color: white; outline: none; min-width: 180px; text-align: center; }
+    input:focus { box-shadow: 0 0 0 2px #981eef; }
+    #uBtn { background: #981eef; color: #1c1c24; }
+    #resetBtn { background: #ff4757; color: white; }
+    #authBtn { background: #33ff00; color: #1c1c24; }
+    button:hover:not(:disabled) { transform: scale(1.04); }
+    button:active:not(:disabled) { transform: scale(.96); }
+    #uBtn:disabled { opacity: .45; cursor: not-allowed; }
+    #g { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; background: #1c1c24; padding: 15px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.4); width: 100%; max-width: 1200px; }
+    .tile { width: 100%; aspect-ratio: 1/1; border-radius: 0; padding: 0; cursor: pointer; overflow: hidden; position: relative; transition: transform .12s, filter .12s, box-shadow .12s; }
+    .tile:hover { transform: scale(1.025); filter: brightness(1.1); }
+    .tile.empty { background: #282833; cursor: default; }
+    .tile.selected { transform: scale(.9); outline: 3px solid white; outline-offset: -3px; }
+    .leaderboard { margin-top: 20px; background: #1c1c24; padding: 16px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,.3); width: 100%; max-width: 360px; text-align: center; color: white; font-size: 14px; }
+    .leaderboard h3 { margin: 0 0 12px; color: #f7b731; font-size: 16px; letter-spacing: 1px; }
+    .lb-entry { padding: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .lb-entry:last-child { border-bottom: none; }
+    #authError { color: #ff4757; font-size: 12px; margin-top: 8px; min-height: 16px; }
+    #submitStatus { color: #33ff00; font-size: 12px; margin-top: 8px; }
+    #syncStatus { color: #981eef; font-size: 11px; margin-top: 4px; }
+  </style>
 </head>
 <body>
 
@@ -53,7 +55,7 @@ button:active:not(:disabled) { transform:scale(.96); }
 <div id="g"></div>
 
 <div class="leaderboard">
-  <h3>🌍 WORLD LEADERBOARD</h3>
+  <h3> WORLD LEADERBOARD</h3>
   <div id="authSection">
     <input type="text" id="usernameInput" placeholder="Choose Username (3-15 chars)" maxlength="15" />
     <button id="authBtn" onclick="handleAnonymousAuth()">PLAY AS THIS NAME</button>
@@ -62,6 +64,7 @@ button:active:not(:disabled) { transform:scale(.96); }
   <div id="scoreSection" style="display:none;">
     <p>Playing as: <strong id="currentUsername"></strong></p>
     <div id="submitStatus"></div>
+    <div id="syncStatus"></div>
   </div>
   <div id="worldLeaderboardList" style="margin-top:12px;text-align:left;"></div>
 </div>
@@ -71,9 +74,16 @@ const SUPABASE_URL = 'https://fvfiximzwatnhptdmfnp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2Zml4aW16d2F0bmhwdGRtZm5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTE5MDUsImV4cCI6MjEwNDI2NzkwNX0.PNCGc44GCVvaLwRJ0DnxlfBzV2-IKk-c0UyvPlbQRMM';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Leaderboard state
 let lastSubmitTime = 0;
 const SUBMIT_COOLDOWN = 60000;
 let autoSubmitInterval = null;
+
+// Cloud sync state
+let lastCloudSync = 0;
+const SYNC_COOLDOWN = 30000;
+let isSyncing = false;
+let syncIntervalId = null;
 
 const BAD_WORDS = ['ass','bastard','bitch','cock','crap','damn','dick','fuck','hell','nigger','penis','piss','shit','slut','whore'];
 function containsProfanity(text) {
@@ -95,8 +105,8 @@ function isValidUsername(username) {
 class Roman {
   constructor() {
     this.z = 4e9; this.B = Math.log10(this.z);
-    this.frac = ["","·",":","∴","∷","","S","S·","S:","S∴","S∷","S⁙"];
-    this.F = [[1e9,"M̿"],[9e8,"C̿M̿"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],[9e7,"X̿C"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],[4e6,"M̄V"],[1e6,"M̄"],[9e5,"C̄M̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],[9e4,"X̄C"],[5e4,"L̄"],[4e4,"X̄L"],[1e4,"X̄"],[9e3,"M̄X̄"],[5e3,"V̄"],[4e3,"MV"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+    this.frac = ["","·",":","","∷","","S","S·","S:","S∴","S∷","S⁙"];
+    this.F = [[1e9,"M"],[9e8,"C̿M"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],[9e7,"X̿C"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],[4e6,"M̄V"],[1e6,"M̄"],[9e5,"CM̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],[9e4,"X̄C"],[5e4,"L̄"],[4e4,"X̄L"],[1e4,"X̄"],[9e3,"M̄X̄"],[5e3,"V̄"],[4e3,"MV"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
   }
   romanize(t) {
     let out = "";
@@ -147,7 +157,6 @@ function fNumRouter({m,e}) {
   return fNum({m,e});
 }
 
-// ✅ FIXED: Async initialization with proper awaits
 document.addEventListener("DOMContentLoaded", async () => {
   const sel = document.getElementById("notationSelect");
   if (sel) sel.addEventListener("change", e => { notationMode = e.target.value; render(); });
@@ -218,7 +227,6 @@ function render(){
       const displayWidth=tile.offsetWidth||128; const scale=displayWidth/256;
       const mask=document.createElement("div"); mask.style.width=(256*scale)+"px";mask.style.height=(256*scale)+"px"; mask.style.overflow="hidden";mask.style.borderRadius="12px"; mask.style.position="absolute";mask.style.top="50%";mask.style.left="50%"; mask.style.transform="translate(-50%,-50%)";
       const img=document.createElement("div"); img.style.width=(2560*scale)+"px";img.style.height="auto";img.style.aspectRatio="1/1"; img.style.backgroundImage="url('barrels"+fileNum+".png')"; img.style.backgroundSize=(2560*scale)+"px auto"; img.style.backgroundPosition=Math.round(-col*256*scale)+"px "+Math.round(-row*256*scale)+"px";
-      // ✅ NO imageRendering="pixelated" — smooth scaling only
       mask.appendChild(img);tile.appendChild(mask);
     }
     tile.onclick=(function(i){return function(){clickTile(i);};})(index); board.appendChild(tile);
@@ -228,7 +236,56 @@ function render(){
 setInterval(()=>{ let newIncome={m:0,e:0}; grid.forEach(tier=>{if(tier>0)newIncome=nAdd(newIncome,nPow(3,tier));}); Income=nNew(newIncome.m,newIncome.e); coins=nAdd(coins,Income); },1000);
 setInterval(()=>{render();},1000);
 
-// ✅ FIXED: All auth functions are now properly async/await
+// ==========================================
+// CLOUD SYNC FUNCTIONS
+// ==========================================
+async function loadFromCloud(userId) {
+  try {
+    const { data, error } = await sb.from('player_saves').select('*').eq('user_id', userId).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data) {
+      coins = { m: data.coins_m, e: data.coins_e };
+      upgradeTier = data.upgrade_tier;
+      grid = JSON.parse(data.grid_json);
+      maxTileInRun = data.max_tile;
+      bestTileAllTime = Math.max(bestTileAllTime, data.best_tile_all_time);
+      fillBoard();
+      render();
+      console.log('✅ Cloud save loaded!');
+    }
+  } catch (err) { console.error('Failed to load cloud save:', err); }
+}
+
+async function saveToCloud(userId) {
+  if (isSyncing) return;
+  if (Date.now() - lastCloudSync < SYNC_COOLDOWN) return;
+  isSyncing = true;
+  try {
+    const { error } = await sb.from('player_saves').upsert({
+      user_id: userId,
+      coins_m: coins.m,
+      coins_e: coins.e,
+      upgrade_tier: upgradeTier,
+      grid_json: JSON.stringify(grid),
+      max_tile: maxTileInRun,
+      best_tile_all_time: bestTileAllTime,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    lastCloudSync = Date.now();
+    const statusEl = document.getElementById("syncStatus");
+    if (statusEl) statusEl.textContent = "☁️ Synced at " + new Date().toLocaleTimeString();
+    console.log('☁️ Game synced to cloud!');
+  } catch (err) {
+    console.error('Cloud save failed:', err);
+    const statusEl = document.getElementById("syncStatus");
+    if (statusEl) statusEl.textContent = " Sync failed";
+  } finally { isSyncing = false; }
+}
+
+// ==========================================
+// AUTH & LEADERBOARD (Updated with Sync)
+// ==========================================
 async function handleAnonymousAuth() {
   const username = document.getElementById("usernameInput").value.trim();
   const errorEl = document.getElementById("authError");
@@ -248,19 +305,26 @@ async function updateAuthUI() {
   const authSec = document.getElementById("authSection");
   const scoreSec = document.getElementById("scoreSection");
   const unameSpan = document.getElementById("currentUsername");
+
   if (session) {
     const username = session.user.user_metadata?.username || "Unknown";
     authSec.style.display = "none";
     scoreSec.style.display = "block";
     unameSpan.textContent = escapeHTML(username);
-    if (!autoSubmitInterval) {
-      autoSubmitInterval = setInterval(throttledAutoSubmit, 10000);
-      throttledAutoSubmit();
+
+    // Load cloud save immediately on login
+    await loadFromCloud(session.user.id);
+
+    // Start auto-sync timer
+    if (!syncIntervalId) {
+      syncIntervalId = setInterval(() => saveToCloud(session.user.id), SYNC_COOLDOWN);
+      // Also trigger immediate sync after loading
+      await saveToCloud(session.user.id);
     }
   } else {
     authSec.style.display = "block";
     scoreSec.style.display = "none";
-    if (autoSubmitInterval) { clearInterval(autoSubmitInterval); autoSubmitInterval = null; }
+    if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; }
   }
 }
 
@@ -283,11 +347,9 @@ async function throttledAutoSubmit() {
   if (!error) {
     lastSubmitTime = Date.now();
     localStorage.setItem("micronym_last_submitted_best", currentBest.toString());
-    statusEl.textContent = "✅ Score synced! Next auto-submit in ~" + Math.ceil((SUBMIT_COOLDOWN - (Date.now() - lastSubmitTime)) / 1000) + "s";
+    statusEl.textContent = "✅ Score synced! Next in ~" + Math.ceil((SUBMIT_COOLDOWN - (Date.now() - lastSubmitTime)) / 1000) + "s";
     await loadWorldLeaderboard();
-  } else {
-    statusEl.textContent = "❌ Submit failed: " + error.message;
-  }
+  } else { statusEl.textContent = "❌ Submit failed: " + error.message; }
 }
 
 async function loadWorldLeaderboard() {
@@ -299,7 +361,7 @@ async function loadWorldLeaderboard() {
   let html = "";
   data.forEach((entry, i) => {
     const rank = i + 1;
-    const medal = rank === 1 ? "" : rank === 2 ? "" : rank === 3 ? "🥉" : "#" + rank;
+    const medal = rank === 1 ? "" : rank === 2 ? "" : rank === 3 ? "" : "#" + rank;
     html += '<div class="lb-entry"><span>' + medal + " " + escapeHTML(entry.username) + '</span><span>Tier ' + entry.best_tile + "</span></div>";
   });
   listEl.innerHTML = html;
