@@ -12,11 +12,11 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; width: 100%; min-height: 100%; font-family: 'Inter', sans-serif !important; user-select: none; }
     body { background: hsl(calc(240deg + var(--tier) - 1deg), 100%, 50%); color: rgba(255,255,255,0.858); font-weight: 700; display: flex; flex-direction: column; align-items: center; padding: 25px; }
-    #s { font-size: 30px; letter-spacing: 2px; margin-bottom: 5px; text-align: center; }
+    #s { font-size: 30px; letter-spacing: 2px; margin-bottom: 5px; text-align: center; white-space: pre-line; }
     #p { color: #33ff00; font-size: 16px; margin-bottom: 15px; letter-spacing: 1px; animation: blink 1.5s infinite; text-align: center; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
-    button, input { padding: 10px 15px; font-weight: 700; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 1px; transition: .15s; font-family: inherit; }
+    button, input, select { padding: 10px 15px; font-weight: 700; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 1px; transition: .15s; font-family: inherit; }
     input { background: #282833; color: white; outline: none; min-width: 180px; text-align: center; }
     input:focus { box-shadow: 0 0 0 2px #981eef; }
     #uBtn { background: #981eef; color: #1c1c24; }
@@ -35,8 +35,7 @@
     .lb-entry { padding: 8px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
     .lb-entry:last-child { border-bottom: none; }
     #authError { color: #ff4757; font-size: 12px; margin-top: 8px; min-height: 16px; }
-    #submitStatus { color: #33ff00; font-size: 12px; margin-top: 8px; }
-    #syncStatus { color: #981eef; font-size: 11px; margin-top: 4px; }
+    #syncStatus { color: #981eef; font-size: 11px; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -47,7 +46,7 @@
   <button id="uBtn" onclick="buyUpgrade()">+1 BASE BLOCK</button>
   <button id="resetBtn" onclick="resetGame()">RESET RUN</button>
 </div>
-<select id="notationSelect" style="padding:10px;border-radius:8px;font-weight:700;margin-bottom:20px;">
+<select id="notationSelect" style="margin-bottom:20px;">
   <option value="scientific">Scientific (default)</option>
   <option value="roman">Roman</option>
   <option value="chemical">Chemical</option>
@@ -55,7 +54,7 @@
 <div id="g"></div>
 
 <div class="leaderboard">
-  <h3> WORLD LEADERBOARD</h3>
+  <h3>🌍 WORLD LEADERBOARD</h3>
   <div id="authSection">
     <input type="text" id="usernameInput" placeholder="Choose Username (3-15 chars)" maxlength="15" />
     <button id="authBtn" onclick="handleAnonymousAuth()">PLAY AS THIS NAME</button>
@@ -63,28 +62,26 @@
   </div>
   <div id="scoreSection" style="display:none;">
     <p>Playing as: <strong id="currentUsername"></strong></p>
-    <div id="submitStatus"></div>
-    <div id="syncStatus"></div>
+    <div id="syncStatus">Waiting for next sync...</div>
   </div>
   <div id="worldLeaderboardList" style="margin-top:12px;text-align:left;"></div>
 </div>
 
 <script>
+// ==========================================
+// CONFIGURATION
+// ==========================================
 const SUPABASE_URL = 'https://fvfiximzwatnhptdmfnp.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2Zml4aW16d2F0bmhwdGRtZm5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2OTE5MDUsImV4cCI6MjEwNDI2NzkwNX0.PNCGc44GCVvaLwRJ0DnxlfBzV2-IKk-c0UyvPlbQRMM';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Leaderboard state
-let lastSubmitTime = 0;
-const SUBMIT_COOLDOWN = 5000;
-let autoSubmitInterval = null;
-
-// Cloud sync state
+// Sync intervals
+const SYNC_COOLDOWN = 5000; // Auto-save & submit every 5 seconds
 let lastCloudSync = 0;
-const SYNC_COOLDOWN = 2500;
 let isSyncing = false;
 let syncIntervalId = null;
 
+// Profanity Filter
 const BAD_WORDS = ['ass','bastard','bitch','cock','crap','damn','dick','fuck','hell','nigger','penis','piss','shit','slut','whore'];
 function containsProfanity(text) {
   const lower = text.toLowerCase().trim();
@@ -102,6 +99,7 @@ function isValidUsername(username) {
   return true;
 }
 
+// Notation Classes
 class Roman {
   constructor() {
     this.z = 4e9; this.B = Math.log10(this.z);
@@ -157,6 +155,7 @@ function fNumRouter({m,e}) {
   return fNum({m,e});
 }
 
+// Init
 document.addEventListener("DOMContentLoaded", async () => {
   const sel = document.getElementById("notationSelect");
   if (sel) sel.addEventListener("change", e => { notationMode = e.target.value; render(); });
@@ -168,6 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
+// Big Number Math
 const nNew=(m,e)=>{if(m===0)return{m:0,e:0};const c=Math.floor(Math.log10(Math.abs(m)));return{m:m/Math.pow(10,c),e:e+c};};
 const nAdd=(a,b)=>{if(a.m===0)return b;if(b.m===0)return a;const d=a.e-b.e;if(d>15)return a;if(d<-15)return b;return nNew(a.m*Math.pow(10,d)+b.m,b.e);};
 const nSub=(a,b)=>{const d=a.e-b.e;if(d>15)return a;if(d<-15)return nNew(-b.m,b.e);return nNew(a.m*Math.pow(10,d)-b.m,b.e);};
@@ -175,6 +175,7 @@ const nGte=(a,b)=>{if(a.e!==b.e)return a.e>b.e;return a.m>=b.m;};
 const nPow=(base,exponent)=>{if(exponent===0)return{m:1,e:0};const t=exponent*Math.log10(base);const e=Math.floor(t);return nNew(Math.pow(10,t-e),e);};
 const fNum=n=>{if(n.m===0)return"0";if(n.e<4)return Math.floor(n.m*Math.pow(10,n.e)).toString();return n.m.toFixed(2)+"e"+n.e;};
 
+// Game State
 let coins={m:0,e:0};
 let upgradeTier=parseInt(localStorage.getItem("micronym_upgrade"))||0;
 let grid=Array(64).fill(1);
@@ -188,14 +189,14 @@ let Income={m:0,e:0};
 function getBase(){ return Math.max(3.01); }
 function getCost(){ const power=nPow(getBase(),upgradeTier); const level=Math.max(1,upgradeTier); const divisor=Math.max(1,Math.log(level*Math.log(level+Math.pow(11,Math.log10(level)))+1)); return nNew(power.m*10000/divisor,power.e); }
 function getSpawnTier(){ return upgradeTier+1; }
-function save(){ localStorage.setItem("micronym_coins",coins.m+"e"+coins.e); localStorage.setItem("micronym_upgrade",upgradeTier); localStorage.setItem("micronym_grid",JSON.stringify(grid)); localStorage.setItem("micronym_run_best",maxTileInRun); localStorage.setItem("micronym_best",bestTileAllTime); }
+function saveLocal(){ localStorage.setItem("micronym_coins",coins.m+"e"+coins.e); localStorage.setItem("micronym_upgrade",upgradeTier); localStorage.setItem("micronym_grid",JSON.stringify(grid)); localStorage.setItem("micronym_run_best",maxTileInRun); localStorage.setItem("micronym_best",bestTileAllTime); }
 function fillBoard(){ const spawn=getSpawnTier(); grid.forEach((x,i)=>{ if(x===0) grid[i]=spawn; if(grid[i]>maxTileInRun) maxTileInRun=grid[i]; }); if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; }
 
 let mergeAllCooldown=false;
 function mergeAll(){
   if(mergeAllCooldown) return; mergeAllCooldown=true; let merged=true;
   while(merged){ merged=false; outer:for(let a=0;a<grid.length;a++){ if(grid[a]===0) continue; for(let b=a+1;b<grid.length;b++){ if(grid[b]===grid[a]&&grid[b]>0){ const next=grid[a]+1; grid[a]=0;grid[b]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; merged=true;break outer; } } } }
-  selected=null;fillBoard();save();render(); setTimeout(()=>{mergeAllCooldown=false;},10000);
+  selected=null;fillBoard();saveLocal();render(); setTimeout(()=>{mergeAllCooldown=false;},10000);
 }
 document.addEventListener("keydown",(e)=>{ if(e.key.toLowerCase()==="m"&&!e.repeat) mergeAll(); });
 
@@ -203,49 +204,15 @@ function clickTile(index){
   const from=selected;const to=grid[index];
   if(from===null){if(to>0)selected=index;render();return;}
   if(from===index){selected=null;render();return;}
-  if(from!==null&&grid[from]===to&&to>0){ const next=grid[from]+1; grid[from]=0;grid[index]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; selected=null;fillBoard();save();render();return; }
-  if(to===0){grid[index]=grid[from];grid[from]=0;selected=null;save();render();return;}
+  if(from!==null&&grid[from]===to&&to>0){ const next=grid[from]+1; grid[from]=0;grid[index]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; selected=null;fillBoard();saveLocal();render();return; }
+  if(to===0){grid[index]=grid[from];grid[from]=0;selected=null;saveLocal();render();return;}
   selected=to>0?index:null;render();
 }
-function buyUpgrade(){ const cost=getCost(); if(!nGte(coins,cost)) return; coins=nSub(coins,cost);upgradeTier++; const spawn=getSpawnTier(); grid.forEach((x,i)=>{if(x>0&&x<spawn)grid[i]=spawn;}); fillBoard();save();render(); }
-function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};upgradeTier=0;grid=Array(64).fill(1);selected=null;maxTileInRun=1; fillBoard();save();render(); }
-async function safeResetBestTile() {
-  // 1. Reset local state immediately
-  bestTileAllTime = 1;
-  maxTileInRun = 1;
-  
-  // 2. Update localStorage
-  localStorage.setItem("micronym_best", "1");
-  localStorage.setItem("micronym_run_best", "1");
-  
-  // 3. Get current user session
-  const { data } = await sb.auth.getSession();
-  const session = data?.session;
-  
-  // 4. Update cloud save if logged in
-  if (session) {
-    try {
-      await sb.from('player_saves').upsert({
-        user_id: session.user.id,
-        best_tile_all_time: 1,
-        max_tile: 1,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
-      
-      console.log("✅ Best tile reset to 1 locally and in cloud!");
-    } catch (err) {
-      console.error("Cloud reset failed:", err);
-      alert("Local reset successful, but cloud sync failed. Your next auto-save will fix it.");
-    }
-  } else {
-    console.log("✅ Best tile reset to 1 locally (not logged in)");
-  }
-  
-  // 5. Refresh UI
-  render();
-}
+function buyUpgrade(){ const cost=getCost(); if(!nGte(coins,cost)) return; coins=nSub(coins,cost);upgradeTier++; const spawn=getSpawnTier(); grid.forEach((x,i)=>{if(x>0&&x<spawn)grid[i]=spawn;}); fillBoard();saveLocal();render(); }
+function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};upgradeTier=0;grid=Array(64).fill(1);selected=null;maxTileInRun=1;bestTileAllTime=1; fillBoard();saveLocal();render(); }
 function escapeHTML(text){ return String(text).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
 
+// Render
 function render(){
   const spawn=getSpawnTier();const cost=getCost();
   document.body.style.background="hsl("+(bestTileAllTime-1)+", 35%, 50%)";
@@ -272,31 +239,22 @@ setInterval(()=>{ let newIncome={m:0,e:0}; grid.forEach(tier=>{if(tier>0)newInco
 setInterval(()=>{render();},1000);
 
 // ==========================================
-// CLOUD SYNC FUNCTIONS
+// UNIFIED AUTO-SYNC & AUTO-SUBMIT (Every 5s)
 // ==========================================
-async function loadFromCloud(userId) {
-  try {
-    const { data, error } = await sb.from('player_saves').select('*').eq('user_id', userId).single();
-    if (error && error.code !== 'PGRST116') throw error;
-    if (data) {
-      coins = { m: data.coins_m, e: data.coins_e };
-      upgradeTier = data.upgrade_tier;
-      grid = JSON.parse(data.grid_json);
-      maxTileInRun = data.max_tile;
-      bestTileAllTime = Math.max(bestTileAllTime, data.best_tile_all_time);
-      fillBoard();
-      render();
-      console.log('✅ Cloud save loaded!');
-    }
-  } catch (err) { console.error('Failed to load cloud save:', err); }
-}
-
-async function saveToCloud(userId) {
+async function autoSyncAndSubmit() {
+  const { data } = await sb.auth.getSession();
+  const session = data?.session;
+  if (!session) return;
   if (isSyncing) return;
-  if (Date.now() - lastCloudSync < SYNC_COOLDOWN) return;
+  
   isSyncing = true;
   try {
-    const { error } = await sb.from('player_saves').upsert({
+    const userId = session.user.id;
+    const username = session.user.user_metadata?.username;
+    if (!username || !isValidUsername(username)) return;
+
+    // 1. Save game progress to cloud
+    await sb.from('player_saves').upsert({
       user_id: userId,
       coins_m: coins.m,
       coins_e: coins.e,
@@ -306,21 +264,34 @@ async function saveToCloud(userId) {
       best_tile_all_time: bestTileAllTime,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
-    if (error) throw error;
-    lastCloudSync = Date.now();
-    const statusEl = document.getElementById("syncStatus");
-    if (statusEl) statusEl.textContent = "☁️ Synced at " + new Date().toLocaleTimeString();
-    console.log('☁️ Game synced to cloud!');
+
+    // 2. Automatically submit leaderboard ONLY if improved
+    const lastSubmittedBest = parseInt(localStorage.getItem("micronym_last_submitted_best") || "0");
+    if (bestTileAllTime > lastSubmittedBest) {
+      await sb.from("leaderboard").upsert([{
+        user_id: userId,
+        username: username,
+        best_tile: bestTileAllTime,
+        coins_m: coins.m,
+        coins_e: coins.e
+      }], { onConflict: "user_id" });
+      
+      localStorage.setItem("micronym_last_submitted_best", bestTileAllTime.toString());
+      console.log(`✅ Auto-submitted Tier ${bestTileAllTime} to leaderboard!`);
+    }
+
+    // Update UI
+    const syncEl = document.getElementById("syncStatus");
+    if (syncEl) syncEl.textContent = `☁️ Synced | Next in ${SYNC_COOLDOWN/1000}s`;
+    
   } catch (err) {
-    console.error('Cloud save failed:', err);
-    const statusEl = document.getElementById("syncStatus");
-    if (statusEl) statusEl.textContent = " Sync failed";
-  } finally { isSyncing = false; }
+    console.error("Auto-sync failed:", err);
+  } finally {
+    isSyncing = false;
+  }
 }
 
-// ==========================================
-// AUTH & LEADERBOARD (Updated with Sync)
-// ==========================================
+// Auth UI
 async function handleAnonymousAuth() {
   const username = document.getElementById("usernameInput").value.trim();
   const errorEl = document.getElementById("authError");
@@ -347,14 +318,23 @@ async function updateAuthUI() {
     scoreSec.style.display = "block";
     unameSpan.textContent = escapeHTML(username);
 
-    // Load cloud save immediately on login
-    await loadFromCloud(session.user.id);
+    // Load cloud save on login
+    try {
+      const { data: saveData } = await sb.from('player_saves').select('*').eq('user_id', session.user.id).single();
+      if (saveData) {
+        coins = { m: saveData.coins_m, e: saveData.coins_e };
+        upgradeTier = saveData.upgrade_tier;
+        grid = JSON.parse(saveData.grid_json);
+        maxTileInRun = saveData.max_tile;
+        bestTileAllTime = Math.max(bestTileAllTime, saveData.best_tile_all_time);
+        fillBoard(); render();
+      }
+    } catch(e) { console.warn("No cloud save found, starting fresh."); }
 
-    // Start auto-sync timer
+    // Start unified 5-second timer
     if (!syncIntervalId) {
-      syncIntervalId = setInterval(() => saveToCloud(session.user.id), SYNC_COOLDOWN);
-      // Also trigger immediate sync after loading
-      await saveToCloud(session.user.id);
+      syncIntervalId = setInterval(autoSyncAndSubmit, SYNC_COOLDOWN);
+      await autoSyncAndSubmit(); // Immediate first sync
     }
   } else {
     authSec.style.display = "block";
@@ -363,35 +343,11 @@ async function updateAuthUI() {
   }
 }
 
-async function throttledAutoSubmit() {
-  const { data } = await sb.auth.getSession();
-  const session = data?.session;
-  if (!session) return;
-  if (Date.now() - lastSubmitTime < SUBMIT_COOLDOWN) return;
-  const currentBest = bestTileAllTime;
-  const lastSubmittedBest = parseInt(localStorage.getItem("micronym_last_submitted_best") || "0");
-  if (currentBest <= lastSubmittedBest) return;
-  const username = session.user.user_metadata?.username;
-  if (!username || !isValidUsername(username)) return;
-  const statusEl = document.getElementById("submitStatus");
-  statusEl.textContent = "Submitting...";
-  const { error } = await sb.from("leaderboard").upsert([{
-    user_id: session.user.id, username: username,
-    best_tile: currentBest, coins_m: coins.m, coins_e: coins.e
-  }], { onConflict: "user_id" });
-  if (!error) {
-    lastSubmitTime = Date.now();
-    localStorage.setItem("micronym_last_submitted_best", currentBest.toString());
-    statusEl.textContent = "✅ Score synced! Next in ~" + Math.ceil((SUBMIT_COOLDOWN - (Date.now() - lastSubmitTime)) / 1000) + "s";
-    await loadWorldLeaderboard();
-  } else { statusEl.textContent = "❌ Submit failed: " + error.message; }
-}
-
+// Leaderboard
 async function loadWorldLeaderboard() {
   const listEl = document.getElementById("worldLeaderboardList");
   listEl.innerHTML = "<p>Loading...</p>";
   
-  // ✅ FIX: Removed .single() - this returns an ARRAY of up to 20 entries
   const { data, error } = await sb
     .from("leaderboard")
     .select("username, best_tile")
@@ -403,27 +359,22 @@ async function loadWorldLeaderboard() {
     listEl.innerHTML = "<p>Error loading leaderboard</p>"; 
     return; 
   }
-  
-  // Handle empty table gracefully (no error, just no data)
   if (!data || data.length === 0) { 
     listEl.innerHTML = "<p>No scores yet. Be the first!</p>"; 
     return; 
   }
 
-  console.log("LEADERBOARD RAW DATA:", data);
-
   let html = "";
   data.forEach((entry, i) => {
     const rank = i + 1;
-    const medal = rank === 1 ? "" : rank === 2 ? "" : rank === 3 ? "" : "#" + rank;
-    // Number() ensures correct display even if DB returns string
+    const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "#" + rank;
     html += '<div class="lb-entry"><span>' + medal + " " + escapeHTML(entry.username) + '</span><span>Tier ' + Number(entry.best_tile) + "</span></div>";
   });
   listEl.innerHTML = html;
 }
 
 if (grid.every(v => v === 0)) fillBoard();
-save();
+saveLocal();
 render();
 </script>
 </body>
