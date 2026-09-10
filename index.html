@@ -47,19 +47,24 @@
 // Notation Classes
 class Roman {
   constructor() {
-  format(value) {
     this.z = 4e9; 
     this.B = Math.log10(this.z);
-// Index 3 filled with "∴" to denote 3 unciae
-this.frac = ["", "·", ":", "∴", "∷", "⁙", "S", "S·", "S:", "S∴", "S∷", "S⁙"];
+    this.frac = ["", "·", ":", "∴", "∷", "⁙", "S", "S·", "S:", "S∴", "S∷", "S⁙"];
+    this.F = [
+      [1e9,"M\u033F"],[9e8,"C\u033FM\u033F"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],
+      [9e7,"X̿C"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],
+      [4e6,"M̄V̿"],[1e6,"M̄"],[9e5,"C̄M̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],
+      [9e4,"X̄C̄"],[5e4,"L̄"],[4e4,"X̄L"],[1e4,"X̄"],[9e3,"M̄X̄"],[5e3,"V̄"],
+      [4e3,"MV̄"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],
+      [90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]
+    ];
+  }
 
-    this.F = [[1e9,"M\u033F"],[9e8,"C\u033FM\u033F"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],[9e7,"X̿C"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],[4e6,"M̄V̿"],[1e6,"M̄"],[9e5,"C̄M̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],[9e4,"X̄C̄"],[5e4,"L̄"],[4e4,"X̄L"],[1e4,"X̄"],[9e3,"M̄X̄"],[5e3,"V̄"],[4e3,"MV̄"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
-    
-    // 1. Move initialization here so the loop actually has data to read
+  format(value) {
     let t = value; 
     let out = "";
-  }
-    // 2. This loop can now safely run using 't' and 'out'
+
+    // Pętla zamieniająca część całkowitą na cyfry rzymskie
     for (const [val, symbol] of this.F) { 
       while (t >= val) { 
         out += symbol; 
@@ -67,21 +72,30 @@ this.frac = ["", "·", ":", "∴", "∷", "⁙", "S", "S·", "S:", "S∴", "S∷
       } 
     }
 
-    // 3. Your fraction logic scales perfectly for the empty spots in your array!
+    // Ułamki rzymskie (dwunastkowe) bazujące na Twoim wzorze
     let a = Math.round(1.2 * Math.floor(10 * t));
     if (a === 0) return out === "" ? "nulla" : out;
+    if (a >= this.frac.length) return out; // Bezpiecznik przed wyjściem poza tablicę
     return out + this.frac[a];
   }
 
   formatDecimal(n) {
+    // n to obiekt typu Decimal posiadający mantysę (n.m) oraz wykładnik (n.e)
     const value = n.m * Math.pow(10, n.e);
-    if (value < this.z) return this.romanize(value);
+    
+    // Jeśli liczba jest mniejsza niż 4e9, formatujemy ją normalnie
+    if (value < this.z) return this.format(value);
+    
+    // Wykładnik potęgowy dla ogromnych liczb (Antimatter Dimensions)
     const log10 = Math.log10(n.m) + n.e;
     const N = log10 / this.B;
     const r = Math.pow(this.z, N - Math.floor(N));
-    return this.romanize(r) + "↑" + this.formatDecimal({m:N,e:0});
+    
+    // Rekurencyjnie formatujemy bazę oraz potęgę po strzałce ↑
+    return this.format(r) + "↑" + this.formatDecimal({m: N, e: 0});
   }
 }
+
 class Chemical {
   static formatChemicalNumber(value) {
     if (value == null) return "0.00";
