@@ -47,14 +47,32 @@
 // Notation Classes
 class Roman {
   constructor() {
-    this.z = 4e9; this.B = Math.log10(this.z);
-    this.frac = ["","·",":","","∷","","S","S·","S:","S∴","S∷","S⁙"];
+  format(value) {
+    this.z = 4e9; 
+    this.B = Math.log10(this.z);
+// Index 3 filled with "∴" to denote 3 unciae
+this.frac = ["", "·", ":", "∴", "∷", "⁙", "S", "S·", "S:", "S∴", "S∷", "S⁙"];
+
     this.F = [[1e9,"M\u033F"],[9e8,"C\u033FM\u033F"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],[9e7,"X̿C"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],[4e6,"M̄V̿"],[1e6,"M̄"],[9e5,"C̄M̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],[9e4,"X̄C̄"],[5e4,"L̄"],[4e4,"X̄L"],[1e4,"X̄"],[9e3,"M̄X̄"],[5e3,"V̄"],[4e3,"MV̄"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
-    for (const [value, symbol] of this.F) { while (t >= value) { out += symbol; t -= value; } }
+    
+    // 1. Move initialization here so the loop actually has data to read
+    let t = value; 
+    let out = "";
+
+    // 2. This loop can now safely run using 't' and 'out'
+    for (const [val, symbol] of this.F) { 
+      while (t >= val) { 
+        out += symbol; 
+        t -= val; 
+      } 
+    }
+
+    // 3. Your fraction logic scales perfectly for the empty spots in your array!
     let a = Math.round(1.2 * Math.floor(10 * t));
     if (a === 0) return out === "" ? "nulla" : out;
     return out + this.frac[a];
   }
+
   formatDecimal(n) {
     const value = n.m * Math.pow(10, n.e);
     if (value < this.z) return this.romanize(value);
