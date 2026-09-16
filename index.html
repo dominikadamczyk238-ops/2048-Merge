@@ -40,6 +40,7 @@
   <option value="scientific">Scientific (default)</option>
   <option value="roman">Roman</option>
   <option value="chemical">Chemical</option>
+  <option value="isotope">Isotopic Chemical</option>
 </select>
 <div id="g"></div>
 
@@ -133,12 +134,65 @@ class Chemical {
   }
 }
 Chemical.chemicalElements = ["H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
+class IsotopeNotation {
+  static formatChemicalNumber(value) {
+    if (value == null) return "0.00";
+    let exponent = Number(value.e ?? value.exponent);
+    let mantissa = Number(value.m ?? value.mantissa);
+    if (!Number.isFinite(exponent) || !Number.isFinite(mantissa)) {
+      const logarithm = typeof value.log10 === "function" ? Number(value.log10()) : NaN;
+      if (!Number.isFinite(logarithm)) return "0.00";
+      exponent = Math.floor(logarithm); mantissa = Math.pow(10, logarithm - exponent);
+    }
+    if (mantissa === 0) return "0.00";
+    const step = Math.floor(exponent / 3);
+    const scaledMantissa = mantissa * Math.pow(10, exponent - step * 3);
+    let suffix = "";
+    if (step >= 1 && step <= IsotopeNotation.chemicalElements.length) {
+      suffix = IsotopeNotation.chemicalElements[step - 1];
+    } else if (step > IsotopeNotation.chemicalElements.length) {
+      let index = step - IsotopeNotation.chemicalElements.length - 1;
+      const base = IsotopeNotation.chemicalElements.length;
+      suffix = IsotopeNotation.chemicalElements[Math.floor(index / base)] + "-" + IsotopeNotation.chemicalElements[index % base];
+    }
+    return scaledMantissa.toFixed(2) + (suffix ? " " + suffix : "");
+  }
+
+  static _generateSortedIsotopes() {
+    const data = [
+      ["H", 1, 7], ["He", 3, 10], ["Li", 4, 13], ["Be", 6, 17], ["B", 7, 21], ["C", 8, 22], ["N", 10, 25], ["O", 11, 28], ["F", 14, 31], ["Ne", 15, 34],
+      ["Na", 18, 39], ["Mg", 19, 40], ["Al", 21, 43], ["Si", 22, 44], ["P", 24, 46], ["S", 26, 49], ["Cl", 28, 51], ["Ar", 30, 54], ["K", 32, 57], ["Ca", 34, 59],
+      ["Sc", 36, 61], ["Ti", 38, 64], ["V", 40, 66], ["Cr", 42, 68], ["Mn", 44, 70], ["Fe", 45, 74], ["Co", 47, 76], ["Ni", 48, 82], ["Cu", 52, 81], ["Zn", 54, 85],
+      ["Ga", 56, 87], ["Ge", 58, 90], ["As", 60, 92], ["Se", 64, 95], ["Br", 66, 98], ["Kr", 69, 101], ["Rb", 71, 103], ["Sr", 73, 106], ["Y", 76, 109], ["Zr", 78, 112],
+      ["Nb", 81, 115], ["Mo", 83, 118], ["Tc", 85, 122], ["Ru", 87, 125], ["Rh", 89, 128], ["Pd", 91, 131], ["Ag", 93, 134], ["Cd", 95, 138], ["In", 97, 141], ["Sn", 99, 143],
+      ["Sb", 103, 145], ["Te", 104, 147], ["I", 108, 149], ["Xe", 108, 151], ["Cs", 112, 154], ["Ba", 114, 157], ["La", 116, 160], ["Ce", 119, 162], ["Pr", 121, 164], ["Nd", 124, 167],
+      ["Pm", 126, 169], ["Sm", 128, 171], ["Eu", 130, 173], ["Gd", 132, 175], ["Tb", 135, 177], ["Dy", 138, 180], ["Ho", 140, 182], ["Er", 143, 185], ["Tm", 145, 187], ["Yb", 148, 190],
+      ["Lu", 150, 192], ["Hf", 153, 195], ["Ta", 155, 197], ["W", 158, 200], ["Re", 160, 202], ["Os", 162, 204], ["Ir", 164, 207], ["Pt", 166, 210], ["Au", 169, 213], ["Hg", 171, 216],
+      ["Tl", 176, 218], ["Pb", 178, 220], ["Bi", 184, 222], ["Po", 188, 224], ["At", 191, 226], ["Rn", 193, 231], ["Fr", 199, 233], ["Ra", 201, 235], ["Ac", 205, 237], ["Th", 207, 239],
+      ["Pa", 212, 241], ["U", 215, 243], ["Np", 219, 245], ["Pu", 228, 247], ["Am", 232, 249], ["Cm", 233, 252], ["Bk", 235, 254], ["Cf", 237, 256], ["Es", 240, 258], ["Fm", 242, 260],
+      ["Md", 244, 262], ["No", 248, 264], ["Lr", 251, 266], ["Rf", 253, 268], ["Db", 255, 270], ["Sg", 258, 272], ["Bh", 260, 274], ["Hs", 263, 277], ["Mt", 265, 279], ["Ds", 267, 282],
+      ["Rg", 272, 284], ["Cn", 277, 286], ["Nh", 278, 288], ["Fl", 282, 290], ["Mc", 284, 292], ["Lv", 288, 294], ["Ts", 291, 295], ["Og", 293, 295]
+    ];
+    const rawList = [];
+    for (const [symbol, min, max] of data) {
+      for (let mass = min; mass <= max; mass++) {
+        rawList.push({ mass, symbol });
+      }
+    }
+    rawList.sort((a, b) => a.mass - b.mass || a.symbol.localeCompare(b.symbol));
+    return rawList.map(item => `${item.mass}${item.symbol}`);
+  }
+} // <--- TUTAJ JEST KOŃCOWA KLAMRA ZAMYKAJĄCA KLASĘ
+
+// Przypisanie wygenerowanej tablicy do pola statycznego
+IsotopeNotation.chemicalElements = IsotopeNotation._generateSortedIsotopes();
 
 let notationMode = "scientific";
 const RomanFormatter = new Roman();
 function fNumRouter({m,e}) {
   if (notationMode === "roman") return RomanFormatter.formatDecimal({m,e});
   if (notationMode === "chemical") return Chemical.formatChemicalNumber({m,e});
+if (notationMode === "isotope") return IsotopeNotation.formatChemicalNumber({m, e});
   return fNum({m,e});
 }
 
