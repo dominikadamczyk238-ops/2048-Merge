@@ -41,7 +41,9 @@
   <option value="roman">Roman</option>
   <option value="chemical">Chemical</option>
   <option value="isotope">Isotopic Chemical</option>
+  <option value="elemental_imperial">Elemental Imperial</option>
 </select>
+
 <div id="g"></div>
 
 <script>
@@ -186,13 +188,147 @@ class IsotopeNotation {
 
 // Przypisanie wygenerowanej tablicy do pola statycznego
 IsotopeNotation.chemicalElements = IsotopeNotation._generateSortedIsotopes();
+class ElementalImperial {
+  constructor() {
+    this.fluids = [
+      "minim", "dram", "ounce", "pint", "quart", "gallon", 
+      "kilderkin", "barrel", "hogshead", "puncheon", "butt", "tun"
+    ];
+    this.fluidMultipliers = [1, 60, 8, 20, 2, 4, 18, 2, 1.5, 1.333333333333, 1.5, 2];
+
+    this.elements = [
+      "Hydrogen", "Helium", "Lithium", "Beryllium", "Boron", "Carbon", "Nitrogen", "Oxygen", "Fluorine", "Neon",
+      "Sodium", "Magnesium", "Aluminum", "Silicon", "Phosphorus", "Sulfur", "Chlorine", "Argon", "Potassium", "Calcium",
+      "Scandium", "Titanium", "Vanadium", "Chromium", "Manganese", "Iron", "Cobalt", "Nickel", "Copper", "Zinc",
+      "Gallium", "Germanium", "Arsenic", "Selenium", "Bromine", "Krypton", "Rubidium", "Strontium", "Yttrium", "Zirconium",
+      "Niobium", "Molybdenum", "Technetium", "Ruthenium", "Rhodium", "Palladium", "Silver", "Cadmium", "Indium", "Tin",
+      "Antimony", "Tellurium", "Iodine", "Xenon", "Cesium", "Barium", "Lanthanum", "Cerium", "Praseodymium", "Neodymium",
+      "Promethium", "Samarium", "Europium", "Gadolinium", "Terbium", "Dysprosium", "Holmium", "Erbium", "Thulium", "Ytterbium",
+      "Lutetium", "Hafnium", "Tantalum", "Tungsten", "Rhenium", "Osmium", "Iridium", "Platinum", "Gold", "Mercury",
+      "Thallium", "Lead", "Bismuth", "Polonium", "Astatine", "Radon", "Francium", "Radium", "Actinium", "Thorium",
+      "Protactinium", "Uranium", "Neptunium", "Plutonium", "Americium", "Curium", "Berkelium", "Californium", "Einsteinium", "Fermium",
+      "Mendelevium", "Nobelium", "Lawrencium", "Rutherfordium", "Dubnium", "Seaborgium", "Bohrium", "Hassium", "Meitnerium", "Darmstadtium",
+      "Roentgenium", "Copernicium", "Nihonium", "Flerovium", "Moscovium", "Livermorium", "Tennessine", "Oganesson"
+    ];
+
+    this.elementMultipliers = this.elements.map((_, index) => {
+      if (index === 0 || index === 1) return 10;
+      if (index === 2) return 16;
+      return 15;
+    });
+
+    this.eras = [
+      "First", "Lower", "Negative", "Unimpossible", "Friendly", 
+      "Truly Easy", "Anonymous", "Felix's", "Existing"
+    ];
+
+    this.steps = [];
+    
+    for (let era of this.eras) {
+      // Płyny
+      for (let i = 0; i < this.fluids.length; i++) {
+        this.steps.push({
+          rawName: this.fluids[i],
+          era: era.toLowerCase(),
+          mult: this.fluidMultipliers[i],
+          isFluid: true
+        });
+      }
+      this.steps.push({ name: "transition", mult: 10, isTransition: true });
+
+      // Pierwiastki
+      for (let i = 0; i < this.elements.length; i++) {
+        this.steps.push({
+          rawName: this.elements[i],
+          era: era.toLowerCase(),
+          mult: this.elementMultipliers[i],
+          isFluid: false
+        });
+      }
+      this.steps.push({ name: "transition", mult: 15, isTransition: true });
+    }
+  }
+
+  formatChemicalNumber(value) {
+    if (value == null) return "0 minute tuns";
+    let exponent = Number(value.e ?? value.exponent);
+    let mantissa = Number(value.m ?? value.mantissa);
+    
+    let num = mantissa * Math.pow(10, exponent);
+    if (num <= 0 || !Number.isFinite(num)) return "0 minute tuns";
+
+    let currentAmount = Math.round(num);
+    if (currentAmount < 1) return "0 minute tuns";
+    if (currentAmount < 60) {
+      return currentAmount === 1 ? "1 minute tun" : `${currentAmount} minute tuns`;
+    }
+
+    let highestIndex = -1;
+    let accumulated = 1;
+
+    for (let i = 1; i < this.steps.length; i++) {
+      if (this.steps[i].isTransition) continue;
+      accumulated *= this.steps[i].mult;
+      if (currentAmount >= accumulated) {
+        highestIndex = i;
+      } else {
+        break;
+      }
+    }
+
+    if (highestIndex === -1) return `${currentAmount} minute tuns`;
+
+    let mainStep = this.steps[highestIndex];
+    let mainUnitValue = 1;
+    for(let i = 1; i <= highestIndex; i++) {
+      mainUnitValue *= this.steps[i].mult;
+    }
+    
+    let mainCount = Math.floor(currentAmount / mainUnitValue);
+    let remainder = currentAmount % mainUnitValue;
+
+    // Budowanie nazwy głównej jednostki (np. "1 first dram" -> "first dram", "2 first drams")
+    let mainUnitName = mainStep.isFluid ? mainStep.rawName : mainStep.rawName;
+    if (mainCount > 1) mainUnitName += "s";
+    let mainStr = mainCount === 1 ? `${mainStep.era} ${mainUnitName}` : `${mainCount} ${mainStep.era} ${mainUnitName}`;
+
+    // Szukanie mniejszej jednostki
+    let subIndex = highestIndex - 1;
+    while (subIndex >= 0 && this.steps[subIndex].isTransition) {
+      subIndex--;
+    }
+
+    if (subIndex >= 0) {
+      let subStep = this.steps[subIndex];
+      let subUnitValue = 1;
+      for(let i = 1; i <= subIndex; i++) {
+        subUnitValue *= this.steps[i].mult;
+      }
+      
+      let subCount = Math.floor(remainder / subUnitValue);
+      if (subCount > 0) {
+        let subUnitName = subStep.isFluid ? subStep.rawName : subStep.rawName;
+        if (subCount > 1) subUnitName += "s";
+        
+        // Druga jednostka NIE dostaje nazwy ery (czyli samo "7 minims")
+        let subStr = subCount === 1 ? `${subUnitName}` : `${subCount} ${subUnitName}`;
+        return `${mainStr} and ${subStr}`;
+      }
+    }
+
+    return mainStr;
+  }
+}
+
+const ElementalImperialFormatter = new ElementalImperial();
 
 let notationMode = "scientific";
 const RomanFormatter = new Roman();
 function fNumRouter({m,e}) {
   if (notationMode === "roman") return RomanFormatter.formatDecimal({m,e});
   if (notationMode === "chemical") return Chemical.formatChemicalNumber({m,e});
-if (notationMode === "isotope") return IsotopeNotation.formatChemicalNumber({m, e});
+  if (notationMode === "isotope") return IsotopeNotation.formatChemicalNumber({m, e});
+  if (notationMode === "elemental_imperial") return ElementalImperialFormatter.formatChemicalNumber({m,e});
   return fNum({m,e});
 }
 
