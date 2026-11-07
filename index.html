@@ -301,7 +301,7 @@ function fNumRouter({m,e}) {
   if (notationMode === "roman") return RomanFormatter.formatDecimal({m,e});
   if (notationMode === "chemical") return Chemical.formatChemicalNumber({m,e});
   if (notationMode === "isotope") return IsotopeNotation.formatChemicalNumber({m, e});
- if (notationMode === "english") return FullEnglishNotation.formatEnglishNumber({m,e});
+ if (notationMode === "english") return FullEnglishNotation.format({m,e});
   return fNum({m,e});
 }
 
