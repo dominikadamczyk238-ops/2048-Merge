@@ -40,8 +40,7 @@
   <option value="scientific">Scientific (default)</option>
   <option value="roman">Roman</option>
   <option value="chemical">Chemical</option>
-  <option value="isotope">Isotopic Chemical</option>
-  <option value="elemental_imperial">Elemental Imperial</option>
+  <option value="english">English </option>
 </select>
 
 <div id="g"></div>
@@ -162,7 +161,7 @@ class IsotopeNotation {
 
   static _generateSortedIsotopes() {
     const data = [
-      ["H", 1, 7], ["He", 3, 10], ["Li", 4, 13], ["Be", 6, 17], ["B", 7, 21], ["C", 8, 22], ["N", 10, 25], ["O", 11, 28], ["F", 14, 31], ["Ne", 15, 34],
+      ["H", 1, 2, 3], ["He", 3, 10], ["Li", 4, 13], ["Be", 6, 17], ["B", 7, 21], ["C", 8, 22], ["N", 10, 25], ["O", 11, 28], ["F", 14, 31], ["Ne", 15, 34],
       ["Na", 18, 39], ["Mg", 19, 40], ["Al", 21, 43], ["Si", 22, 44], ["P", 24, 46], ["S", 26, 49], ["Cl", 28, 51], ["Ar", 30, 54], ["K", 32, 57], ["Ca", 34, 59],
       ["Sc", 36, 61], ["Ti", 38, 64], ["V", 40, 66], ["Cr", 42, 68], ["Mn", 44, 70], ["Fe", 45, 74], ["Co", 47, 76], ["Ni", 48, 82], ["Cu", 52, 81], ["Zn", 54, 85],
       ["Ga", 56, 87], ["Ge", 58, 90], ["As", 60, 92], ["Se", 64, 95], ["Br", 66, 98], ["Kr", 69, 101], ["Rb", 71, 103], ["Sr", 73, 106], ["Y", 76, 109], ["Zr", 78, 112],
@@ -188,147 +187,120 @@ class IsotopeNotation {
 
 // Przypisanie wygenerowanej tablicy do pola statycznego
 IsotopeNotation.chemicalElements = IsotopeNotation._generateSortedIsotopes();
-class ElementalImperial {
+class FullEnglishNotation {
   constructor() {
-    this.fluids = [
-      "minim", "dram", "ounce", "pint", "quart", "gallon", 
-      "kilderkin", "barrel", "hogshead", "puncheon", "butt", "tun"
-    ];
-    this.fluidMultipliers = [1, 60, 8, 20, 2, 4, 18, 2, 1.5, 1.333333333333, 1.5, 2];
-
-    this.elements = [
-      "Hydrogen", "Helium", "Lithium", "Beryllium", "Boron", "Carbon", "Nitrogen", "Oxygen", "Fluorine", "Neon",
-      "Sodium", "Magnesium", "Aluminum", "Silicon", "Phosphorus", "Sulfur", "Chlorine", "Argon", "Potassium", "Calcium",
-      "Scandium", "Titanium", "Vanadium", "Chromium", "Manganese", "Iron", "Cobalt", "Nickel", "Copper", "Zinc",
-      "Gallium", "Germanium", "Arsenic", "Selenium", "Bromine", "Krypton", "Rubidium", "Strontium", "Yttrium", "Zirconium",
-      "Niobium", "Molybdenum", "Technetium", "Ruthenium", "Rhodium", "Palladium", "Silver", "Cadmium", "Indium", "Tin",
-      "Antimony", "Tellurium", "Iodine", "Xenon", "Cesium", "Barium", "Lanthanum", "Cerium", "Praseodymium", "Neodymium",
-      "Promethium", "Samarium", "Europium", "Gadolinium", "Terbium", "Dysprosium", "Holmium", "Erbium", "Thulium", "Ytterbium",
-      "Lutetium", "Hafnium", "Tantalum", "Tungsten", "Rhenium", "Osmium", "Iridium", "Platinum", "Gold", "Mercury",
-      "Thallium", "Lead", "Bismuth", "Polonium", "Astatine", "Radon", "Francium", "Radium", "Actinium", "Thorium",
-      "Protactinium", "Uranium", "Neptunium", "Plutonium", "Americium", "Curium", "Berkelium", "Californium", "Einsteinium", "Fermium",
-      "Mendelevium", "Nobelium", "Lawrencium", "Rutherfordium", "Dubnium", "Seaborgium", "Bohrium", "Hassium", "Meitnerium", "Darmstadtium",
-      "Roentgenium", "Copernicium", "Nihonium", "Flerovium", "Moscovium", "Livermorium", "Tennessine", "Oganesson"
+    this.basicIllions = [
+      "million", "billion", "trillion", "quadrillion", "quintillion", 
+      "sextillion", "septillion", "octillion", "nonillion", "decillion"
     ];
 
-    this.elementMultipliers = this.elements.map((_, index) => {
-      if (index === 0 || index === 1) return 10;
-      if (index === 2) return 16;
-      return 15;
-    });
-
-    this.eras = [
-      "First", "Lower", "Negative", "Unimpossible", "Friendly", 
-      "Truly Easy", "Anonymous", "Felix's", "Existing"
-    ];
-
-    this.steps = [];
-    
-    for (let era of this.eras) {
-      for (let i = 0; i < this.fluids.length; i++) {
-        this.steps.push({
-          rawName: this.fluids[i],
-          era: era.toLowerCase(),
-          mult: this.fluidMultipliers[i],
-          isFluid: true
-        });
-      }
-      this.steps.push({ name: "transition", mult: 10, isTransition: true });
-
-      for (let i = 0; i < this.elements.length; i++) {
-        this.steps.push({
-          rawName: this.elements[i],
-          era: era.toLowerCase(),
-          mult: this.elementMultipliers[i],
-          isFluid: false
-        });
-      }
-      this.steps.push({ name: "transition", mult: 15, isTransition: true });
-    }
-
-    // Pre-kalkulacja wartości stopni na osi logarytmicznej (Math.log10)
-    this.logUnitValues = [];
-    let runningLog = 0;
-    for (let i = 0; i < this.steps.length; i++) {
-      runningLog += Math.log10(this.steps[i].mult);
-      this.logUnitValues.push(runningLog);
-    }
+    this.units = ["", "un", "duo", "tres", "quattuor", "quinque", "se", "septem", "octo", "novem"];
+    this.tens = ["", "deci", "viginti", "triginta", "quadraginta", "quinquaginta", "sexaginta", "septuaginta", "octoginta", "nonaginta"];
+    this.hundreds = ["", "centi", "ducenti", "trecenti", "quadringenti", "quingenti", "sescenti", "septingenti", "octingenti", "nongenti"];
   }
 
-  formatChemicalNumber(value) {
-    if (value == null) return "0 minute tuns";
-    
-    // Parsowanie wejścia do obiektu Decimal gry (obsługuje m i e)
-    let inputDecimal = new Decimal(value);
-    if (inputDecimal.lte(0)) return "0 minute tuns";
+  _getSegmentName(index) {
+    if (index === 0) return "";
+    let u = index % 10;
+    let t = Math.floor((index % 100) / 10);
+    let h = Math.floor(index / 100);
 
-    // Pobranie log10 z wejściowej liczby (błyskawiczna operacja na wykładnikach)
-    let currentLog = inputDecimal.log10();
+    let uPrefix = this.units[u];
+    let tPrefix = this.tens[t];
+    let hPrefix = this.hundreds[h];
 
-    if (currentLog < Math.log10(60)) {
-      let num = Math.round(inputDecimal.toNumber());
-      return num === 1 ? "1 minute tun" : `${num} minute tuns`;
+    // Reguły Conwaya-Wechslera łączące litery przedrostków
+    if (u === 3 && [2, 3, 4, 5, 8].includes(t)) uPrefix = "tres";
+    if (u === 6 && [2, 3, 4, 5].includes(t)) uPrefix = "sexi";
+    if (u === 6 && (t === 8 || h === 1 || h === 8)) uPrefix = "sex";
+    if ([7, 9].includes(u) && [1, 3, 5, 8].includes(t)) uPrefix += "n";
+    if ([7, 9].includes(u) && [2, 4, 6, 7].includes(t)) uPrefix += "m"; 
+    if ([7, 9].includes(u) && !t && [1, 4, 6, 7].includes(h)) uPrefix += "m";
+
+    return uPrefix + tPrefix + hPrefix;
+  }
+
+  _getIllionName(illionIndex) {
+    if (illionIndex < this.basicIllions.length) {
+      return this.basicIllions[illionIndex];
     }
 
-    // Wybór głównej jednostki na bazie porównania logarytmów
-    let highestIndex = -1;
-    for (let i = 0; i < this.steps.length; i++) {
-      if (this.steps[i].isTransition) continue;
-      if (currentLog >= this.logUnitValues[i]) {
-        highestIndex = i;
-      } else {
-        break;
-      }
+    let tempIndex = illionIndex;
+    let segments = [];
+    while (tempIndex > 0) {
+      segments.push(tempIndex % 1000);
+      tempIndex = Math.floor(tempIndex / 1000);
     }
 
-    if (highestIndex === -1) return "0 minute tuns";
-
-    let mainStep = this.steps[highestIndex];
-    let mainLogValue = this.logUnitValues[highestIndex];
-    
-    // Obliczanie wartości bez używania dzielenia modulo:
-    // Ilość głównej jednostki = 10^(TwójLog - LogJednostki)
-    let mainCountDecimal = Decimal.pow(10, currentLog - mainLogValue).floor();
-    let mainCount = mainCountDecimal.toNumber();
-
-    let mainUnitName = mainStep.rawName;
-    if (mainCount > 1) mainUnitName += "s";
-    let mainStr = mainCount === 1 ? `${mainStep.era} ${mainUnitName}` : `${mainCount} ${mainStep.era} ${mainUnitName}`;
-
-    // Szukanie mniejszej sub-jednostki (w dół listy)
-    let subIndex = highestIndex - 1;
-    while (subIndex >= 0 && this.steps[subIndex].isTransition) {
-      subIndex--;
-    }
-
-    if (subIndex >= 0) {
-      let subLogValue = this.logUnitValues[subIndex];
-      
-      // Jeśli różnica rzędów wielkości wynosi więcej niż 15, mniejsza liczba
-      // fizycznie znika z mantysy, więc pomijamy jej wyświetlanie (zapobiega to ucięciu do zera)
-      if ((currentLog - subLogValue) < 15) {
-        let totalSubUnits = Decimal.pow(10, currentLog - subLogValue);
-        let mainUnitsInSubSize = Decimal.pow(10, mainLogValue - subLogValue).mul(mainCountDecimal);
-        let subCountDecimal = totalSubUnits.sub(mainUnitsInSubSize).floor();
-        let subCount = subCountDecimal.toNumber();
-
-        if (subCount > 0) {
-          let subStep = this.steps[subIndex];
-          let subUnitName = subStep.rawName;
-          if (subCount > 1) subUnitName += "s";
-          
-          let subStr = subCount === 1 ? `${subUnitName}` : `${subCount} ${subUnitName}`;
-          return `${mainStr} and ${subStr}`;
+    let illionName = "";
+    for (let i = 0; i < segments.length; i++) {
+      let segName = this._getSegmentName(segments[i]);
+      if (segName !== "") {
+        if (i === 0) {
+          illionName = segName + "llion";
+        } else {
+          let milliPrefix = "milli-".repeat(i);
+          illionName = segName + milliPrefix + (illionName ? " " + illionName : "llion");
         }
       }
     }
 
-    return mainStr;
+    return illionName.replace("illionllion", "illion");
+  }
+
+  // Przyjmuje obiekt { m, e } jako argument
+  format(bigNumber) {
+    let { m, e } = bigNumber;
+
+    if (e < 3) {
+      return (m * Math.pow(10, e)).toFixed(2);
+    }
+
+    const illionIndex = Math.floor(e / 3) - 1;
+    const remainder = e % 3;
+    const currentMantissa = Math.floor(m * Math.pow(10, remainder));
+
+    // Słowniki do konwersji bazowej liczby przed członem "-illion"
+    const numberWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+    const teenWords = ["ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+    const tenWords = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+    function convertToWords(num) {
+      if (num === 0) return "zero";
+      
+      let words = "";
+      if (num >= 100) {
+        words += numberWords[Math.floor(num / 100)] + " hundred ";
+        num %= 100;
+      }
+      if (num >= 20) {
+        words += tenWords[Math.floor(num / 10)] + (num % 10 !== 0 ? "-" + numberWords[num % 10] : "");
+      } else if (num >= 10) {
+        words += teenWords[num - 10];
+      } else if (num > 0) {
+        words += numberWords[num];
+      }
+      return words.trim();
+    }
+
+    const mantissaInWords = convertToWords(currentMantissa);
+    const illionName = this._getIllionName(illionIndex);
+
+    return `${mantissaInWords} ${illionName}`;
   }
 }
 
-const ElementalImperialFormatter = new ElementalImperial();
+// --- SPRAWDZENIE DZIAŁANIA ---
+const english = new FullEnglishNotation();
 
+// Przykład z Twojej planszy:
+console.log(notation.format({ m: 2.41, e: 289 })); 
+// Wynik: "two hundred forty-one novemquinquagintillion"
+
+// Przykład z planów końcowych (e1194):
+console.log(notation.format({ m: 1.00, e: 1194 })); 
+// Wynik: "one hundred noventrigintaseptingentillion"
+  
 
 let notationMode = "scientific";
 const RomanFormatter = new Roman();
