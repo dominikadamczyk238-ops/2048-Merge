@@ -231,6 +231,11 @@
 <button id="rollToggle" onclick="toggleRollSidebar()">🎲 Roll (Tier <span id="rollBtnTier">0</span>)</button>
 <div id="rollSidebar" class="closed">
   <h2>🎲 Cosmic Roll (1 / 5ⁿ)</h2>
+    <button id="rollBtn" onclick="doCosmicRoll()">ROLL (KOSZT: 5.62)</button>
+  <button id="luckUpBtn" onclick="upgradeRollLuck()" style="width:100%; margin-top:8px; background:#3a86ff; color:#fff; padding:10px; font-size:12px;">
+    🍀 LUCK: 4.99^0 (KOSZT: 5.62)
+  </button>
+
 
   <div class="roll-box">
     <div style="font-size:11px; color:#aaa; letter-spacing:1px; margin-bottom:8px;">BEST ROLLED TIER</div>
@@ -714,7 +719,21 @@ function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};u
 const nMul = (a, b) => nNew(a.m * b.m, a.e + b.e);
 
 function getRollCost() {
-  return nPow(10, (rollsBought * 7.5 + 3) / 4);
+  return nPow(10, (rollsBought * 1.001 + 3) / 4);
+}
+let rollLuckLevel = parseInt(localStorage.getItem("micronym_roll_luck")) || 0;
+
+function getRollLuckCost() {
+  return nPow(10, (rollLuckLevel * 7.5 + 3) / 4);
+}
+
+function upgradeRollLuck() {
+  const cost = getRollLuckCost();
+  if (!nGte(coins, cost)) return;
+  coins = nSub(coins, cost);
+  rollLuckLevel++;
+  saveLocal();
+  render();
 }
 
 function getRollBoost() {
@@ -755,7 +774,10 @@ function doCosmicRoll() {
   rollsBought++;
 
   const u = Math.max(1e-16, Math.random());
-  const rolledTier = Math.max(1, Math.floor(-Math.log(u) / Math.log(5)));
+   const u = Math.max(1e-16, Math.random());
+  const log5Luck = rollLuckLevel * (Math.log(4.99) / Math.log(5));
+  const rolledTier = Math.max(1, Math.floor(log5Luck - Math.log(u) / Math.log(5)));
+
   const odds = nPow(5, rolledTier);
 
   const lastEl = document.getElementById("rollLastResult");
