@@ -803,7 +803,7 @@ render();
 // COSMIC ROLL SYSTEM (100% BigNum & Permanent)
 // ==========================================
 function getRollCost() {
-const scaled = nMul(rollsBought, { m: 7.5, e: 0 });
+const scaled = nMul(rollsBought, { m: 1, e: 0 });
 const plus3 = nAdd(scaled, { m: 3, e: 0 });
 const exp = nToFloat(nDiv(plus3, { m: 4, e: 0 }));
 return nPow(10, exp);
