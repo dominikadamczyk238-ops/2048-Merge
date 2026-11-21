@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Micronym Merge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; min-height: 100%; font-family: 'Inter', sans-serif !important; user-select: none; }
+    body { background: hsl(calc(240deg + var(--tier) - 1deg), 100%, 50%); color: rgba(255,255,255,0.858); font-weight: 700; display: flex; flex-direction: column; align-items: center; padding: 25px; overflow-x: hidden; }
+    #s { font-size: 30px; letter-spacing: 2px; margin-bottom: 5px; text-align: center; white-space: pre-line; }
+    #p { color: #33ff00; font-size: 16px; margin-bottom: 15px; letter-spacing: 1px; animation: blink 1.5s infinite; text-align: center; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
+    button, select { padding: 10px 15px; font-weight: 700; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 1px; transition: .15s; font-family: inherit; }
+    #uBtn { background: #981eef; color: #1c1c24; }
+    #resetBtn { background: #ff4757; color: white; }
+    button:hover:not(:disabled) { transform: scale(1.04); }
+    button:active:not(:disabled) { transform: scale(.96); }
+    #uBtn:disabled { opacity: .45; cursor: not-allowed; }
+    #g { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; background: #1c1c24; padding: 15px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.4); width: 100%; max-width: 1200px; }
+    .tile { width: 100%; aspect-ratio: 1/1; border-radius: 0; padding: 0; cursor: pointer; overflow: hidden; position: relative; transition: transform .12s, filter .12s, box-shadow .12s; }
+    .tile:hover { transform: scale(1.025); filter: brightness(1.1); }
+    .tile.empty { background: #282833; cursor: default; }
+    .tile.selected { transform: scale(.9); outline: 3px solid white; outline-offset: -3px; }
+
+    /* Music Bar */
+    .music-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(28, 28, 36, 0.85);
+      padding: 8px 16px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .music-bar input[type="range"] {
+      cursor: pointer;
+      accent-color: #981eef;
+    }
+
+    /* Side Achievements Tab */
+    #achToggle {
+      position: fixed;
+      right: 0;
+      top: 20px;
+      z-index: 1001;
+      background: #1c1c24;
+      color: #ffd700;
+      border: 2px solid #ffd700;
+      border-right: none;
+      border-radius: 10px 0 0 10px;
+      padding: 12px 16px;
+      box-shadow: -4px 4px 15px rgba(0,0,0,0.4);
+    }
+    #achSidebar {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 330px;
+      max-width: 90vw;
+      height: 100vh;
+      background: #16161d;
+      color: #f0f0f0;
+      border-left: 2px solid #323242;
+      padding: 70px 16px 24px;
+      overflow-y: auto;
+      z-index: 1000;
+      transition: transform 0.25s ease;
+      box-shadow: -8px 0 25px rgba(0,0,0,0.6);
+    }
+    #achSidebar.closed {
+      transform: translateX(100%);
+    }
+    #achSidebar h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      color: #ffd700;
+      letter-spacing: 1px;
+    }
+    .ach-card {
+      background: #22222c;
+      border: 1px solid #353545;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      opacity: 0.55;
+      transition: 0.2s;
+    }
+    .ach-card.unlocked {
+      opacity: 1;
+      border-color: #ffd700;
+      background: #2b2718;
+    }
+    .ach-title {
+      font-size: 14px;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .ach-card.unlocked .ach-title {
+      color: #ffd700;
+    }
+    .ach-desc {
+      font-size: 12px;
+      font-weight: 400;
+      color: #ccc;
+    }
+
+    /* Toast */
+    #achToast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1c1c24;
+      border: 2px solid #ffd700;
+      color: #ffd700;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 2000;
+    }
+    #achToast.show {
+      opacity: 1;
+    }
+    /* Side Roll Tab (Left) */
+#rollToggle {
+  position: fixed;
+  left: 0;
+  top: 20px;
+  z-index: 1001;
+  background: #1c1c24;
+  color: #06d6a0;
+  border: 2px solid #06d6a0;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  box-shadow: 4px 4px 15px rgba(0,0,0,0.4);
+}
+#rollSidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 300px;
+  max-width: 90vw;
+  height: 100vh;
+  background: #16161d;
+  color: #f0f0f0;
+  border-right: 2px solid #323242;
+  padding: 75px 16px 24px;
+  overflow-y: auto;
+  z-index: 1000;
+  transition: transform 0.25s ease;
+  box-shadow: 8px 0 25px rgba(0,0,0,0.6);
+  text-align: center;
+}
+#rollSidebar.closed {
+  transform: translateX(-100%);
+}
+#rollSidebar h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  color: #06d6a0;
+  letter-spacing: 1px;
+}
+.roll-box {
+  background: #22222c;
+  border: 1px solid #353545;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+#rollBtn {
+  width: 100%;
+  background: #06d6a0;
+  color: #16161d;
+  padding: 12px;
+  font-size: 13px;
+}
+#rollBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+  </style>
+</head>
+<body>
+
+<div id="s">MONETY: 0<br>You get 0 coin(s) per second</div>
+<div id="p">SPAWN KAFELKÓW: TIER 1</div>
+<div class="controls">
+  <button id="uBtn" onclick="buyUpgrade()">+1 BASE BLOCK</button>
+  <button id="resetBtn" onclick="resetGame()">RESET RUN</button>
+</div>
+<select id="notationSelect" style="margin-bottom:12px;">
+  <option value="scientific">Scientific (default)</option>
+  <option value="roman">Roman</option>
+  <option value="chemical">Chemical</option>
+  <option value="english">English </option>
+</select>
+
+<div class="music-bar">
+  <span>🎵 <span id="musicStatus">Click anywhere to play music...</span></span>
+  <label style="display:flex;align-items:center;gap:6px;">
+    🔊 <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.5" oninput="setMusicVolume(this.value)" />
+  </label>
+</div>
+
+<div id="g"></div>
+
+<!-- Side Achievements Tab -->
+<button id="achToggle" onclick="toggleAchSidebar()">🏆 Achievements (<span id="achBtnCount">0</span>/14)</button>
+<div id="achSidebar" class="closed">
+  <h2>Achievements (<span id="achSidebarCount">0</span>/14)</h2>
+  <div id="achList"></div>
+</div>
+<div id="achToast"></div>
+<!-- Side Roll Tab (Left) -->
+<button id="rollToggle" onclick="toggleRollSidebar()">🎲 Roll (Tier <span id="rollBtnTier">0</span>)</button>
+<div id="rollSidebar" class="closed">
+  <h2>🎲 Cosmic Roll (1 / 5ⁿ)</h2>
+
+  <button id="luckUpBtn" onclick="upgradeRollLuck()" style="width:100%; margin-top:8px; background:#3a86ff; color:#fff; padding:10px; font-size:12px;">
+    🍀 LUCK: 4.99^0 (KOSZT: 5.62)
+  </button>
+
+
+  <div class="roll-box">
+    <div style="font-size:11px; color:#aaa; letter-spacing:1px; margin-bottom:8px;">BEST ROLLED TIER</div>
+    <div id="rollSpritePreview" style="width:128px; height:128px; margin:0 auto 10px; background:#282833; border-radius:12px; overflow:hidden; position:relative;"></div>
+    <div id="rollBestText" style="font-size:15px; color:#ffd700; margin-bottom:4px;">None (1.00x Coins/s)</div>
+    <div id="rollOddsText" style="font-size:12px; font-weight:400; color:#8ecae6;">Odds: 1 in 5^n</div>
+  </div>
+
+  <div id="rollLastResult" style="min-height:36px; font-size:12px; font-weight:400; color:#ccc; margin-bottom:12px; line-height:1.4;">
+    Click Roll to try your luck!
+  </div>
+
+  <button id="rollBtn" onclick="doCosmicRoll()">ROLL (KOSZT: 5.62)</button>
+</div>
+
+<script>
+// Notation Classes
+class Roman {
+  constructor() {
+    this.z = 4e12; 
+    this.B = Math.log10(this.z);
+    this.frac = ["", "·", ":", "∴", "∷", "⁙", "S", "S·", "S:", "S∴", "S∷", "S⁙"];
+    this.F = [
+      [1e12, "M\u033F\u0305"],
+      [9e11, "C\u033F\u0305M\u033F\u0305"],
+      [5e11, "D\u033F\u0305"],
+      [4e11, "C\u033F\u0305D\u033F\u0305"],
+      [1e11, "C\u033F\u0305"],
+      [9e10, "X\u033F\u0305C\u033F\u0305"],
+      [5e10, "L\u033F\u0305"],
+      [4e10, "X\u033F\u0305L\u033F\u0305"],
+      [1e10, "X\u033F\u0305"],
+      [9e9,  "M\u033FX\u033F\u0305"],
+      [5e9,  "V\u033F\u0305"],
+      [4e9,  "M\u033FV\u033F\u0305"],
+      
+      [1e9,"M\u033F"],[9e8,"C\u033FM\u033F"],[5e8,"D̿"],[4e8,"C̿D̿"],[1e8,"C̿"],
+      [9e7,"X̿C̿"],[5e7,"L̿"],[4e7,"X̿L̿"],[1e7,"X̿"],[9e6,"M̿X̿"],[5e6,"V̿"],
+      [4e6,"M̄V̿"],[1e6,"M̄"],[9e5,"C̄M̄"],[5e5,"D̄"],[4e5,"C̄D̄"],[1e5,"C̄"],
+      [9e4,"X̄C̄"],[5e4,"L̄"],[4e4,"X̄L̄"],[1e4,"X̄"],[9e3,"MX̄"],[5e3,"V̄"],
+      [4e3,"MV̄"],[1e3,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],
+      [90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]
+    ];
+  }
+
+  format(value) {
+    let t = value; 
+    let out = "";
+
+    for (const [val, symbol] of this.F) { 
+      while (t >= val) { 
+        out += symbol; 
+        t -= val; 
+      } 
+    }
+
+    let a = Math.round(1.2 * Math.floor(10 * t));
+    if (a === 0) return out === "" ? "nulla" : out;
+    if (a >= this.frac.length) return out;
+    return out + this.frac[a];
+  }
+
+  formatDecimal(n) {
+    const value = n.m * Math.pow(10, n.e);
+    if (value < this.z) return this.format(value);
+    const log10 = Math.log10(n.m) + n.e;
+    const N = log10 / this.B;
+    const r = Math.pow(this.z, N - Math.floor(N));
+    return this.format(r) + "↑" + this.formatDecimal({m: N, e: 0});
+  }
+}
+
+class Chemical {
+  static formatChemicalNumber(value) {
+    if (value == null) return "0.00";
+    let exponent = Number(value.e ?? value.exponent);
+    let mantissa = Number(value.m ?? value.mantissa);
+    if (!Number.isFinite(exponent) || !Number.isFinite(mantissa)) {
+      const logarithm = typeof value.log10 === "function" ? Number(value.log10()) : NaN;
+      if (!Number.isFinite(logarithm)) return "0.00";
+      exponent = Math.floor(logarithm); mantissa = Math.pow(10, logarithm - exponent);
+    }
+    if (mantissa === 0) return "0.00";
+    const step = Math.floor(exponent / 3);
+    const scaledMantissa = mantissa * Math.pow(10, exponent - step * 3);
+    let suffix = "";
+    if (step >= 1 && step <= Chemical.chemicalElements.length) suffix = Chemical.chemicalElements[step - 1];
+    else if (step > Chemical.chemicalElements.length) {
+      let index = step - Chemical.chemicalElements.length - 1;
+      const base = Chemical.chemicalElements.length;
+      suffix = Chemical.chemicalElements[Math.floor(index/base)] + "-" + Chemical.chemicalElements[index % base];
+    }
+    return scaledMantissa.toFixed(2) + (suffix ? " " + suffix : "");
+  }
+}
+Chemical.chemicalElements = ["H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
+
+class IsotopeNotation {
+  static formatChemicalNumber(value) {
+    if (value == null) return "0.00";
+    let exponent = Number(value.e ?? value.exponent);
+    let mantissa = Number(value.m ?? value.mantissa);
+    if (!Number.isFinite(exponent) || !Number.isFinite(mantissa)) {
+      const logarithm = typeof value.log10 === "function" ? Number(value.log10()) : NaN;
+      if (!Number.isFinite(logarithm)) return "0.00";
+      exponent = Math.floor(logarithm); mantissa = Math.pow(10, logarithm - exponent);
+    }
+    if (mantissa === 0) return "0.00";
+    const step = Math.floor(exponent / 3);
+    const scaledMantissa = mantissa * Math.pow(10, exponent - step * 3);
+    let suffix = "";
+    if (step >= 1 && step <= IsotopeNotation.chemicalElements.length) {
+      suffix = IsotopeNotation.chemicalElements[step - 1];
+    } else if (step > IsotopeNotation.chemicalElements.length) {
+      let index = step - IsotopeNotation.chemicalElements.length - 1;
+      const base = IsotopeNotation.chemicalElements.length;
+      suffix = IsotopeNotation.chemicalElements[Math.floor(index / base)] + "-" + IsotopeNotation.chemicalElements[index % base];
+    }
+    return scaledMantissa.toFixed(2) + (suffix ? " " + suffix : "");
+  }
+
+  static _generateSortedIsotopes() {
+    const data = [
+      ["H", 1, 2, 3], ["He", 3, 10], ["Li", 4, 13], ["Be", 6, 17], ["B", 7, 21], ["C", 8, 22], ["N", 10, 25], ["O", 11, 28], ["F", 14, 31], ["Ne", 15, 34],
+      ["Na", 18, 39], ["Mg", 19, 40], ["Al", 21, 43], ["Si", 22, 44], ["P", 24, 46], ["S", 26, 49], ["Cl", 28, 51], ["Ar", 30, 54], ["K", 32, 57], ["Ca", 34, 59],
+      ["Sc", 36, 61], ["Ti", 38, 64], ["V", 40, 66], ["Cr", 42, 68], ["Mn", 44, 70], ["Fe", 45, 74], ["Co", 47, 76], ["Ni", 48, 82], ["Cu", 52, 81], ["Zn", 54, 85],
+      ["Ga", 56, 87], ["Ge", 58, 90], ["As", 60, 92], ["Se", 64, 95], ["Br", 66, 98], ["Kr", 69, 101], ["Rb", 71, 103], ["Sr", 73, 106], ["Y", 76, 109], ["Zr", 78, 112],
+      ["Nb", 81, 115], ["Mo", 83, 118], ["Tc", 85, 122], ["Ru", 87, 125], ["Rh", 89, 128], ["Pd", 91, 131], ["Ag", 93, 134], ["Cd", 95, 138], ["In", 97, 141], ["Sn", 99, 143],
+      ["Sb", 103, 145], ["Te", 104, 147], ["I", 108, 149], ["Xe", 108, 151], ["Cs", 112, 154], ["Ba", 114, 157], ["La", 116, 160], ["Ce", 119, 162], ["Pr", 121, 164], ["Nd", 124, 167],
+      ["Pm", 126, 169], ["Sm", 128, 171], ["Eu", 130, 173], ["Gd", 132, 175], ["Tb", 135, 177], ["Dy", 138, 180], ["Ho", 140, 182], ["Er", 143, 185], ["Tm", 145, 187], ["Yb", 148, 190],
+      ["Lu", 150, 192], ["Hf", 153, 195], ["Ta", 155, 197], ["W", 158, 200], ["Re", 160, 202], ["Os", 162, 204], ["Ir", 164, 207], ["Pt", 166, 210], ["Au", 169, 213], ["Hg", 171, 216],
+      ["Tl", 176, 218], ["Pb", 178, 220], ["Bi", 184, 222], ["Po", 188, 224], ["At", 191, 226], ["Rn", 193, 231], ["Fr", 199, 233], ["Ra", 201, 235], ["Ac", 205, 237], ["Th", 207, 239],
+      ["Pa", 212, 241], ["U", 215, 243], ["Np", 219, 245], ["Pu", 228, 247], ["Am", 232, 249], ["Cm", 233, 252], ["Bk", 235, 254], ["Cf", 237, 256], ["Es", 240, 258], ["Fm", 242, 260],
+      ["Md", 244, 262], ["No", 248, 264], ["Lr", 251, 266], ["Rf", 253, 268], ["Db", 255, 270], ["Sg", 258, 272], ["Bh", 260, 274], ["Hs", 263, 277], ["Mt", 265, 279], ["Ds", 267, 282],
+      ["Rg", 272, 284], ["Cn", 277, 286], ["Nh", 278, 288], ["Fl", 282, 290], ["Mc", 284, 292], ["Lv", 288, 294], ["Ts", 291, 295], ["Og", 293, 295]
+    ];
+    const rawList = [];
+    for (const [symbol, min, max] of data) {
+      for (let mass = min; mass <= max; mass++) {
+        rawList.push({ mass, symbol });
+      }
+    }
+    rawList.sort((a, b) => a.mass - b.mass || a.symbol.localeCompare(b.symbol));
+    return rawList.map(item => `${item.mass}${item.symbol}`);
+  }
+}
+IsotopeNotation.chemicalElements = IsotopeNotation._generateSortedIsotopes();
+
+class FullEnglishNotation {
+  constructor() {
+    this.basicIllions = [
+      "million", "billion", "trillion", "quadrillion", "quintillion", 
+      "sextillion", "septillion", "octillion", "nonillion", "decillion"
+    ];
+
+    this.units = ["", "un", "duo", "tres", "quattuor", "quin", "se", "septem", "octo", "novem"];
+    this.tens = ["", "deci", "viginti", "triginti", "quadraginti", "quinquaginti", "sexaginti", "septuaginti", "octoginti", "nonaginti"];
+    this.hundreds = ["", "centi", "ducenti", "trecenti", "quadringenti", "quingenti", "sescenti", "septingenti", "octingenti", "nongenti"];
+  }
+
+  _getSegmentName(index) {
+    if (index === 0) return "";
+    let u = index % 10;
+    let t = Math.floor((index % 100) / 10);
+    let h = Math.floor(index / 100);
+
+    let uPrefix = this.units[u];
+    let tPrefix = this.tens[t];
+    let hPrefix = this.hundreds[h];
+
+    if (u === 3 && [2, 3, 4, 5, 8].includes(t)) uPrefix = "tres";
+    if (u === 6 && [2, 3, 4, 5].includes(t)) uPrefix = "sexi";
+    if (u === 6 && (t === 8 || h === 1 || h === 8)) uPrefix = "sex";
+    if ([7, 9].includes(u) && [1, 3, 5, 8].includes(t)) uPrefix += "n";
+    if ([7, 9].includes(u) && [2, 4, 6, 7].includes(t)) uPrefix += "m"; 
+    if ([7, 9].includes(u) && !t && [1, 4, 6, 7].includes(h)) uPrefix += "m";
+
+    return uPrefix + tPrefix + hPrefix;
+  }
+
+  _getIllionName(illionIndex) {
+    if (illionIndex < this.basicIllions.length) {
+      return this.basicIllions[illionIndex];
+    }
+
+    let tempIndex = illionIndex;
+    let segments = [];
+    while (tempIndex > 0) {
+      segments.push(tempIndex % 1000);
+      tempIndex = Math.floor(tempIndex / 1000);
+    }
+
+    let illionName = "";
+    for (let i = 0; i < segments.length; i++) {
+      let segName = this._getSegmentName(segments[i]);
+      if (segName !== "") {
+        if (i === 0) {
+          illionName = segName + "llion";
+        } else {
+          let milliPrefix = "milli-".repeat(i);
+          illionName = segName + milliPrefix + (illionName ? " " + illionName : "llion");
+        }
+      }
+    }
+
+    return illionName.replace("illionllion", "illion");
+  }
+
+  format(bigNumber) {
+    let { m, e } = bigNumber;
+
+    if (e < 3) {
+      return (m * Math.pow(10, e)).toFixed(2);
+    }
+
+    const illionIndex = Math.floor(e / 3) - 1;
+    const remainder = e % 3;
+    const currentMantissa = Math.floor(m * Math.pow(10, remainder));
+
+    const numberWords = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+    const teenWords = ["ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+    const tenWords = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+    function convertToWords(num) {
+      if (num === 0) return "zero";
+      
+      let words = "";
+      if (num >= 100) {
+        words += numberWords[Math.floor(num / 100)] + " hundred ";
+        num %= 100;
+      }
+      if (num >= 20) {
+        words += tenWords[Math.floor(num / 10)] + (num % 10 !== 0 ? "-" + numberWords[num % 10] : "");
+      } else if (num >= 10) {
+        words += teenWords[num - 10];
+      } else if (num > 0) {
+        words += numberWords[num];
+      }
+      return words.trim();
+    }
+
+    const mantissaInWords = convertToWords(currentMantissa);
+    const illionName = this._getIllionName(illionIndex);
+
+    return `${mantissaInWords} ${illionName}`;
+  }
+}
+
+let notationMode = "scientific";
+const RomanFormatter = new Roman();
+const english = new FullEnglishNotation();
+
+function fNumRouter({m,e}) {
+  if (notationMode === "roman") return RomanFormatter.formatDecimal({m,e});
+  if (notationMode === "chemical") return Chemical.formatChemicalNumber({m,e});
+  if (notationMode === "isotope") return IsotopeNotation.formatChemicalNumber({m, e});
+  if (notationMode === "english") return english.format({m,e});
+  return fNum({m,e});
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const sel = document.getElementById("notationSelect");
+  if (sel) sel.addEventListener("change", e => {
+    notationMode = e.target.value;
+    if (notationMode === "roman") unlockAchievement("romanized");
+    render();
+  });
+});
+
+// Big Number Math
+const nNew=(m,e)=>{if(m===0||isNaN(m))return{m:0,e:0};const c=Math.floor(Math.log10(Math.abs(m)));return{m:m/Math.pow(10,c),e:e+c};};
+const nAdd=(a,b)=>{if(a.m===0)return b;if(b.m===0)return a;const d=a.e-b.e;if(d>15)return a;if(d<-15)return b;return nNew(a.m*Math.pow(10,d)+b.m,b.e);};
+const nSub=(a,b)=>{const d=a.e-b.e;if(d>15)return a;if(d<-15)return nNew(-b.m,b.e);return nNew(a.m*Math.pow(10,d)-b.m,b.e);};
+const nMul=(a,b)=>nNew(a.m*b.m,a.e+b.e);
+const nDiv=(a,b)=>b.m===0?{m:0,e:0}:nNew(a.m/b.m,a.e-b.e);
+const nGte=(a,b)=>{if(a.e!==b.e)return a.e>b.e;return a.m>=b.m;};
+const nPow=(base,exponent)=>{if(exponent===0)return{m:1,e:0};const t=exponent*Math.log10(base);const e=Math.floor(t);return nNew(Math.pow(10,t-e),e);};
+const nToFloat=n=>n.e>300?Infinity:n.m*Math.pow(10,n.e);
+const nParse=(str,fallback={m:0,e:0})=>{if(!str)return fallback;const p=str.split("e");if(p.length===2&&!isNaN(parseFloat(p[0]))&&!isNaN(parseInt(p[1])))return nNew(parseFloat(p[0]),parseInt(p[1]));const num=parseFloat(str);return !isNaN(num)&&num>0?nNew(num,0):fallback;};
+const fNum=n=>{if(n.m===0)return"0";if(n.e<4)return Math.floor(n.m*Math.pow(10,n.e)).toString();return n.m.toFixed(2)+"e"+n.e;};
+const fBoost=n=>n.e<4?(n.m*Math.pow(10,n.e)).toFixed(3):fNumRouter(n);
+
+// ==========================================
+// MUSIC SYSTEM (1, 100, 500, 1000, and every 500 up to 10K)
+// ==========================================
+const MUSIC_TRACKS = {
+  1: "Heuse, Zeus X Crona, Emma Sameth - Pill (feat. Emma Sameth) [NCS Release].mp3",
+  500: "3-10. UNIVERSAL COLLAPSE.mp3",
+  1000: "25. ΩΩPARTS.mp3",
+  1500: "Raven & Kreyn - Bubble [NCS Release].mp3",
+  2000: "3rd Prototype - I Know [NCS Release].mp3",
+  2500: "3rd Prototype - Dancefloor [NCS Release].mp3",
+  3000: "Prismo - Stronger [NCS Release].mp3",
+  3500: "music/track_3500.mp3",
+  4000: "music/track_4000.mp3",
+  4500: "music/track_4500.mp3",
+  5000: "music/track_5000.mp3",
+  5500: "music/track_5500.mp3",
+  6000: "music/track_6000.mp3",
+  6500: "music/track_6500.mp3",
+  7000: "music/track_7000.mp3",
+  7500: "music/track_7500.mp3",
+  8000: "music/track_8000.mp3",
+  8500: "music/track_8500.mp3",
+  9000: "music/track_9000.mp3",
+  9500: "music/track_9500.mp3",
+  10000: "music/track_10000.mp3"
+};
+
+const bgMusic = new Audio();
+bgMusic.loop = true;
+bgMusic.volume = 0.5;
+let currentTrackMilestone = 0;
+
+function setMusicVolume(val) {
+  bgMusic.volume = parseFloat(val);
+}
+
+function updateMusicSystem(maxTier) {
+  const milestones = Object.keys(MUSIC_TRACKS).map(Number).sort((a, b) => b - a);
+  const target = milestones.find(m => maxTier >= m) || 1;
+
+  if (target !== currentTrackMilestone) {
+    currentTrackMilestone = target;
+    const rawPath = MUSIC_TRACKS[target];
+    bgMusic.src = encodeURI(rawPath);
+    const label = rawPath.replace(/^music\//, "").replace(/\.mp3$/i, "");
+    const statusEl = document.getElementById("musicStatus");
+    if (statusEl) statusEl.innerText = `[Tier ${target}+] ${label}`;
+  }
+  if (bgMusic.paused && bgMusic.src) {
+    bgMusic.play().catch(() => {});
+  }
+}
+
+document.addEventListener("pointerdown", () => {
+  if (bgMusic.paused && bgMusic.src) {
+    bgMusic.play().catch(() => {});
+  }
+});
+
+// ==========================================
+// ACHIEVEMENTS SYSTEM
+// ==========================================
+const ACHIEVEMENTS_DATA = [
+  { id: "deviler", name: "Deviler", desc: "Reach Tier 666.", secret: false },
+  { id: "godder", name: "Godder", desc: "Reach Tier 777.", secret: false },
+  { id: "kilo", name: "Kilo", desc: "Reach Tier 1,000.", secret: false },
+  { id: "broken_limit", name: "Broken Limit", desc: "Reach 1024th tile.", secret: false },
+  { id: "dubroken_limit", name: "Dubroken Limit", desc: "Reach 2048th tile.", secret: false },
+  { id: "tribroken_limit", name: "Tribroken Limit", desc: "Reach 3100th tile.", secret: false },
+  { id: "wealthy", name: "Wealthy", desc: "Reach 1 decillion (10^33) coins.", secret: false },
+  { id: "magnate", name: "Magnate", desc: "Reach 1 quinquagintillion (10^153) coins.", secret: false },
+  { id: "googolgarred", name: "Googolgarred", desc: "Reach 10^200 coins.", secret: false },
+  { id: "obscenely_wealthy", name: "Obscenely Wealthy", desc: "Reach 10^500 coins.", secret: false },
+  { id: "googolchimeized", name: "Googolchimeized", desc: "Reach 10^1000 coins.", secret: false },
+  { id: "romanized", name: "Romanized", desc: "Turn Roman for the first time.", secret: true },
+  { id: "always_free", name: "This one is always free", desc: "Click it once.", secret: true },
+  { id: "popic_deathbed", name: "Popic Deathbed", desc: "Get 2137th tile.", secret: true }
+];
+
+let unlockedAchievements = {};
+try {
+  const savedAch = JSON.parse(localStorage.getItem("micronym_achievements"));
+  if (savedAch && typeof savedAch === "object") unlockedAchievements = savedAch;
+} catch (e) {}
+
+function saveAchievements() {
+  localStorage.setItem("micronym_achievements", JSON.stringify(unlockedAchievements));
+}
+
+function showAchToast(text) {
+  const el = document.getElementById("achToast");
+  if (!el) return;
+  el.innerText = text;
+  el.classList.add("show");
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+function unlockAchievement(id) {
+  if (unlockedAchievements[id]) return;
+  const item = ACHIEVEMENTS_DATA.find(a => a.id === id);
+  if (!item) return;
+  unlockedAchievements[id] = true;
+  saveAchievements();
+  renderAchievements();
+  showAchToast(`🏆 Achievement Unlocked: ${item.name}`);
+}
+
+function toggleAchSidebar() {
+  document.getElementById("achSidebar").classList.toggle("closed");
+}
+
+function renderAchievements() {
+  const listEl = document.getElementById("achList");
+  if (!listEl) return;
+  const unlockedCount = ACHIEVEMENTS_DATA.filter(a => unlockedAchievements[a.id]).length;
+
+  document.getElementById("achBtnCount").innerText = unlockedCount;
+  document.getElementById("achSidebarCount").innerText = unlockedCount;
+
+  listEl.innerHTML = ACHIEVEMENTS_DATA.map(a => {
+    const isUnlocked = !!unlockedAchievements[a.id];
+    const hideDetails = a.secret && !isUnlocked;
+    const title = hideDetails ? "??? (SECRET)" : a.name;
+    const desc = hideDetails ? "Hidden achievement. Keep playing to unlock!" : a.desc;
+    const freeClick = a.id === "always_free" ? `onclick="unlockAchievement('always_free')"` : "";
+    const cursorStyle = a.id === "always_free" ? "cursor:pointer;" : "";
+
+    return `
+      <div class="ach-card ${isUnlocked ? "unlocked" : ""}" ${freeClick} style="${cursorStyle}">
+        <div class="ach-title">${isUnlocked ? "✅ " : "🔒 "}${title}</div>
+        <div class="ach-desc">${desc}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function checkAchievements() {
+  const spawn = getSpawnTier();
+  const bestAllFloat = nToFloat(bestTileAllTime);
+  const maxRunFloat = nToFloat(maxTileInRun);
+  const topTile = Math.max(spawn, bestAllFloat, maxRunFloat, ...grid);
+
+  if (topTile >= 666) unlockAchievement("deviler");
+  if (topTile >= 777) unlockAchievement("godder");
+  if (topTile >= 1000) unlockAchievement("kilo");
+  if (topTile >= 1024) unlockAchievement("broken_limit");
+  if (topTile >= 2048) unlockAchievement("dubroken_limit");
+  if (topTile === 2137 || grid.includes(2137) || bestAllFloat >= 2137) unlockAchievement("popic_deathbed");
+  if (topTile >= 3100) unlockAchievement("tribroken_limit");
+
+  if (nGte(coins, { m: 1, e: 33 })) unlockAchievement("wealthy");
+  if (nGte(coins, { m: 1, e: 153 })) unlockAchievement("magnate");
+  if (nGte(coins, { m: 1, e: 200 })) unlockAchievement("googolgarred");
+  if (nGte(coins, { m: 1, e: 500 })) unlockAchievement("obscenely_wealthy");
+  if (nGte(coins, { m: 1, e: 1000 })) unlockAchievement("googolchimeized");
+
+  updateMusicSystem(topTile);
+}
+
+// Game State (100% BigNum)
+let coins = nParse(localStorage.getItem("micronym_coins"), { m: 0, e: 0 });
+let upgradeTier = nParse(localStorage.getItem("micronym_upgrade"), { m: 0, e: 0 });
+let grid = Array(64).fill(1);
+try { const savedGrid = JSON.parse(localStorage.getItem("micronym_grid")); if (Array.isArray(savedGrid) && savedGrid.length === 64 && savedGrid.every(t => Number.isInteger(t) && t >= 0)) grid = savedGrid; } catch (e) {}
+let selected = null;
+let maxTileInRun = nParse(localStorage.getItem("micronym_run_best"), { m: 1, e: 0 });
+let bestTileAllTime = nParse(localStorage.getItem("micronym_best"), maxTileInRun);
+let rollsBought = nParse(localStorage.getItem("micronym_rolls"), { m: 0, e: 0 });
+let bestRollTier = nParse(localStorage.getItem("micronym_best_roll"), { m: 0, e: 0 });
+let Income = { m: 0, e: 0 };
+
+function getBase() { return 3.02; }
+function getCost() {
+  const exp = nToFloat(upgradeTier);
+  const power = nPow(getBase(), exp);
+  const level = Math.max(1, exp);
+  const divisor = Math.max(1, Math.log(level * Math.log(level + Math.pow(11, Math.log10(level))) + 1));
+  return nNew(power.m * 10000 / divisor, power.e);
+}
+function getSpawnTier() { return Math.floor(nToFloat(upgradeTier)) + 1; }
+
+function saveLocal() {
+  localStorage.setItem("micronym_coins", coins.m + "e" + coins.e);
+  localStorage.setItem("micronym_upgrade", upgradeTier.m + "e" + upgradeTier.e);
+  localStorage.setItem("micronym_grid", JSON.stringify(grid));
+  localStorage.setItem("micronym_run_best", maxTileInRun.m + "e" + maxTileInRun.e);
+  localStorage.setItem("micronym_best", bestTileAllTime.m + "e" + bestTileAllTime.e);
+  localStorage.setItem("micronym_rolls", rollsBought.m + "e" + rollsBought.e);
+  localStorage.setItem("micronym_best_roll", bestRollTier.m + "e" + bestRollTier.e);
+}
+
+function fillBoard() {
+  const spawn = getSpawnTier();
+  grid.forEach((x, i) => {
+    if (x === 0) grid[i] = spawn;
+    const tileBN = nNew(grid[i], 0);
+    if (!nGte(maxTileInRun, tileBN)) maxTileInRun = tileBN;
+  });
+  if (!nGte(bestTileAllTime, maxTileInRun)) bestTileAllTime = maxTileInRun;
+}
+
+let mergeAllCooldown = false;
+function mergeAll() {
+  if (mergeAllCooldown) return;
+  mergeAllCooldown = true;
+  let merged = true;
+  while (merged) {
+merged = false;
+outer: for (let a = 0; a < grid.length; a++) {
+if (grid[a] === 0) continue;
+for (let b = a + 1; b < grid.length; b++) {
+if (grid[b] === grid[a] && grid[b] > 0) {
+const next = grid[a] + 1;
+grid[a] = 0;
+grid[b] = next;
+const nextBN = nNew(next, 0);
+if (!nGte(maxTileInRun, nextBN)) maxTileInRun = nextBN;
+if (!nGte(bestTileAllTime, maxTileInRun)) bestTileAllTime = maxTileInRun;
+merged = true;
+break outer;
+}
+}
+}
+}
+selected = null;
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+setTimeout(() => { mergeAllCooldown = false; }, 10000);
+}
+document.addEventListener("keydown", (e) => { if (e.key.toLowerCase() === "m" && !e.repeat) mergeAll(); });
+function clickTile(index) {
+const from = selected;
+const to = grid[index];
+if (from === null) { if (to > 0) selected = index; render(); return; }
+if (from === index) { selected = null; render(); return; }
+if (from !== null && grid[from] === to && to > 0) {
+const next = grid[from] + 1;
+grid[from] = 0;
+grid[index] = next;
+const nextBN = nNew(next, 0);
+if (!nGte(maxTileInRun, nextBN)) maxTileInRun = nextBN;
+if (!nGte(bestTileAllTime, maxTileInRun)) bestTileAllTime = maxTileInRun;
+selected = null;
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+return;
+}
+if (to === 0) { grid[index] = grid[from]; grid[from] = 0; selected = null; saveLocal(); render(); return; }
+selected = to > 0 ? index : null;
+render();
+}
+function buyUpgrade() {
+const cost = getCost();
+if (!nGte(coins, cost)) return;
+coins = nSub(coins, cost);
+upgradeTier = nAdd(upgradeTier, { m: 1, e: 0 });
+const spawn = getSpawnTier();
+grid.forEach((x, i) => { if (x > 0 && x < spawn) grid[i] = spawn; });
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+}
+function resetGame() {
+if (!confirm("Zresetować run?")) return;
+coins = { m: 0, e: 0 };
+upgradeTier = { m: 0, e: 0 };
+grid = Array(64).fill(1);
+selected = null;
+maxTileInRun = { m: 1, e: 0 };
+currentTrackMilestone = 0;
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+}
+// ==========================================
+// COSMIC ROLL SYSTEM (100% BigNum & Permanent)
+// ==========================================
+function getRollCost() {
+const scaled = nMul(rollsBought, { m: 7.5, e: 0 });
+const plus3 = nAdd(scaled, { m: 3, e: 0 });
+const exp = nToFloat(nDiv(plus3, { m: 4, e: 0 }));
+return nPow(10, exp);
+}
+function getRollBoost() {
+if (bestRollTier.m === 0) return { m: 1, e: 0 };
+return nPow(1.5, nToFloat(bestRollTier));
+}
+function toggleRollSidebar() {
+document.getElementById("rollSidebar").classList.toggle("closed");
+}
+function renderRollSprite(tierBN) {
+const box = document.getElementById("rollSpritePreview");
+if (!box) return;
+box.innerHTML = "";
+const tier = Math.floor(nToFloat(tierBN));
+if (tier <= 0) return;
+const fileNum = Math.floor((tier - 1) / 100) + 1;
+const localIdx = (tier - 1) % 100;
+const col = localIdx % 10;
+const row = Math.floor(localIdx / 10);
+const scale = 128 / 256;
+const img = document.createElement("div");
+img.style.width = (2560 * scale) + "px";
+img.style.height = (2560 * scale) + "px";
+img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
+img.style.backgroundSize = (2560 * scale) + "px auto";
+img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
+box.appendChild(img);
+}
+function doCosmicRoll() {
+const cost = getRollCost();
+if (!nGte(coins, cost)) return;
+coins = nSub(coins, cost);
+rollsBought = nAdd(rollsBought, { m: 1, e: 0 });
+const u = Math.max(1e-16, Math.random());
+const rolledTierNum = Math.max(1, Math.floor(-Math.log(u) / Math.log(5)));
+const rolledTierBN = nNew(rolledTierNum, 0);
+const odds = nPow(5, rolledTierNum);
+const lastEl = document.getElementById("rollLastResult");
+if (!nGte(bestRollTier, rolledTierBN)) {
+bestRollTier = rolledTierBN;
+renderRollSprite(bestRollTier);
+if (lastEl) lastEl.innerHTML =  <strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
+} else {
+if (lastEl) lastEl.innerHTML = Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
+}
+saveLocal();
+renderRollUI();
+render();
+}
+function renderRollUI() {
+const cost = getRollCost();
+const boost = getRollBoost();
+const btn = document.getElementById("rollBtn");
+if (btn) {
+btn.innerText = "ROLL (KOSZT: " + fNumRouter(cost) + ")";
+btn.disabled = !nGte(coins, cost);
+}
+const tabTier = document.getElementById("rollBtnTier");
+if (tabTier) tabTier.innerText = fNumRouter(bestRollTier);
+const bestText = document.getElementById("rollBestText");
+const oddsText = document.getElementById("rollOddsText");
+if (bestRollTier.m > 0 && bestText && oddsText) {
+const odds = nPow(5, nToFloat(bestRollTier));
+bestText.innerText = Tier ${fNumRouter(bestRollTier)} (${fBoost(boost)}x Coins/s);
+oddsText.innerText = Odds: 1 in ${fNumRouter(odds)};
+}
+}
+// Render
+function render() {
+const spawn = getSpawnTier();
+const cost = getCost();
+document.body.style.background = "hsl(" + (nToFloat(bestTileAllTime) - 1) + ", 35%, 50%)";
+document.getElementById("s").innerText = "Coins: " + fNumRouter(coins) + "\nYou get " + fNumRouter(Income) + " coin(s) per second.";
+document.getElementById("p").innerText = "SPAWN KAFELKÓW: TIER " + spawn;
+const uBtn = document.getElementById("uBtn");
+uBtn.innerText = "+1 BASE BLOCK (KOSZT: " + fNumRouter(cost) + ")";
+uBtn.disabled = !nGte(coins, cost);
+renderRollUI();
+const board = document.getElementById("g");
+board.innerHTML = "";
+grid.forEach(function(tileValue, index) {
+const tile = document.createElement("div");
+tile.className = "tile";
+if (tileValue === 0) {
+tile.classList.add("empty");
+} else {
+if (selected === index) tile.classList.add("selected");
+const tier = tileValue;
+const fileNum = Math.floor((tier - 1) / 100) + 1;
+const localIdx = (tier - 1) % 100;
+const col = localIdx % 10;
+const row = Math.floor(localIdx / 10);
+const displayWidth = tile.offsetWidth || 128;
+const scale = displayWidth / 256;
+const mask = document.createElement("div");
+mask.style.width = (256 * scale) + "px";
+mask.style.height = (256 * scale) + "px";
+mask.style.overflow = "hidden";
+mask.style.borderRadius = "12px";
+mask.style.position = "absolute";
+mask.style.top = "50%";
+mask.style.left = "50%";
+mask.style.transform = "translate(-50%,-50%)";
+const img = document.createElement("div");
+img.style.width = (2560 * scale) + "px";
+img.style.height = "auto";
+img.style.aspectRatio = "1/1";
+img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
+img.style.backgroundSize = (2560 * scale) + "px auto";
+img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
+mask.appendChild(img);
+tile.appendChild(mask);
+}
+tile.onclick = (function(i) { return function() { clickTile(i); }; })(index);
+board.appendChild(tile);
+});
+}
+setInterval(() => {
+let newIncome = { m: 0, e: 0 };
+grid.forEach(tier => { if (tier > 0) newIncome = nAdd(newIncome, nPow(3, tier)); });
+newIncome = nMul(newIncome, getRollBoost());
+Income = nNew(newIncome.m, newIncome.e);
+coins = nAdd(coins, Income);
+checkAchievements();
+}, 1000);
+setInterval(() => { render(); }, 1000);
+if (grid.every(v => v === 0)) fillBoard();
+renderAchievements();
+checkAchievements();
+renderRollSprite(bestRollTier);
+saveLocal();
+render();
+</script>
+</body>
+</html>
+
