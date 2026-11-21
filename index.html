@@ -135,6 +135,65 @@
     #achToast.show {
       opacity: 1;
     }
+    /* Side Roll Tab (Left) */
+#rollToggle {
+  position: fixed;
+  left: 0;
+  top: 20px;
+  z-index: 1001;
+  background: #1c1c24;
+  color: #06d6a0;
+  border: 2px solid #06d6a0;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  box-shadow: 4px 4px 15px rgba(0,0,0,0.4);
+}
+#rollSidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 300px;
+  max-width: 90vw;
+  height: 100vh;
+  background: #16161d;
+  color: #f0f0f0;
+  border-right: 2px solid #323242;
+  padding: 75px 16px 24px;
+  overflow-y: auto;
+  z-index: 1000;
+  transition: transform 0.25s ease;
+  box-shadow: 8px 0 25px rgba(0,0,0,0.6);
+  text-align: center;
+}
+#rollSidebar.closed {
+  transform: translateX(-100%);
+}
+#rollSidebar h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  color: #06d6a0;
+  letter-spacing: 1px;
+}
+.roll-box {
+  background: #22222c;
+  border: 1px solid #353545;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+#rollBtn {
+  width: 100%;
+  background: #06d6a0;
+  color: #16161d;
+  padding: 12px;
+  font-size: 13px;
+}
+#rollBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
   </style>
 </head>
 <body>
@@ -168,6 +227,24 @@
   <div id="achList"></div>
 </div>
 <div id="achToast"></div>
+<!-- Side Roll Tab (Left) -->
+<button id="rollToggle" onclick="toggleRollSidebar()">🎲 Roll (Tier <span id="rollBtnTier">0</span>)</button>
+<div id="rollSidebar" class="closed">
+  <h2>🎲 Cosmic Roll (1 / 5ⁿ)</h2>
+
+  <div class="roll-box">
+    <div style="font-size:11px; color:#aaa; letter-spacing:1px; margin-bottom:8px;">BEST ROLLED TIER</div>
+    <div id="rollSpritePreview" style="width:128px; height:128px; margin:0 auto 10px; background:#282833; border-radius:12px; overflow:hidden; position:relative;"></div>
+    <div id="rollBestText" style="font-size:15px; color:#ffd700; margin-bottom:4px;">None (1.00x Coins/s)</div>
+    <div id="rollOddsText" style="font-size:12px; font-weight:400; color:#8ecae6;">Odds: 1 in 5^n</div>
+  </div>
+
+  <div id="rollLastResult" style="min-height:36px; font-size:12px; font-weight:400; color:#ccc; margin-bottom:12px; line-height:1.4;">
+    Click Roll to try your luck!
+  </div>
+
+  <button id="rollBtn" onclick="doCosmicRoll()">ROLL (KOSZT: 5.62)</button>
+</div>
 
 <script>
 // Notation Classes
@@ -430,6 +507,7 @@ const nSub=(a,b)=>{const d=a.e-b.e;if(d>15)return a;if(d<-15)return nNew(-b.m,b.
 const nGte=(a,b)=>{if(a.e!==b.e)return a.e>b.e;return a.m>=b.m;};
 const nPow=(base,exponent)=>{if(exponent===0)return{m:1,e:0};const t=exponent*Math.log10(base);const e=Math.floor(t);return nNew(Math.pow(10,t-e),e);};
 const fNum=n=>{if(n.m===0)return"0";if(n.e<4)return Math.floor(n.m*Math.pow(10,n.e)).toString();return n.m.toFixed(2)+"e"+n.e;};
+const fBoost = n => n.e < 4 ? (n.m * Math.pow(10, n.e)).toFixed(3) : fNumRouter(n);
 
 // ==========================================
 // MUSIC SYSTEM (1, 100, 500, 1000, and every 500 up to 10K)
@@ -599,6 +677,9 @@ let selected=null;
 let maxTileInRun=parseInt(localStorage.getItem("micronym_run_best"))||1;
 let bestTileAllTime=parseInt(localStorage.getItem("micronym_best"))||maxTileInRun;
 try { const savedCoins=localStorage.getItem("micronym_coins"); if(savedCoins){const parts=savedCoins.split("e");if(parts.length===2)coins=nNew(parseFloat(parts[0]),parseInt(parts[1]));} } catch(e){}
+  let rollsBought = parseInt(localStorage.getItem("micronym_rolls")) || 0;
+let bestRollTier = parseInt(localStorage.getItem("micronym_best_roll")) || 0;
+
 let Income={m:0,e:0};
 
 function getBase(){ return Math.max(3.02); }
@@ -625,6 +706,92 @@ function clickTile(index){
 }
 function buyUpgrade(){ const cost=getCost(); if(!nGte(coins,cost)) return; coins=nSub(coins,cost);upgradeTier++; const spawn=getSpawnTier(); grid.forEach((x,i)=>{if(x>0&&x<spawn)grid[i]=spawn;}); fillBoard();checkAchievements();saveLocal();render(); }
 function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};upgradeTier=0;grid=Array(64).fill(1);selected=null;maxTileInRun=1;bestTileAllTime=1; currentTrackMilestone=0; fillBoard();checkAchievements();saveLocal();render(); }
+// ==========================================
+// COSMIC ROLL SYSTEM (1 / 5^n, Cost: 10^((n*7.5+3)/4), Boost: 1.001^tier)
+// ==========================================
+let rollsBought = parseInt(localStorage.getItem("micronym_rolls")) || 0;
+let bestRollTier = parseInt(localStorage.getItem("micronym_best_roll")) || 0;
+
+const nMul = (a, b) => nNew(a.m * b.m, a.e + b.e);
+
+function getRollCost() {
+  return nPow(10, (rollsBought * 7.5 + 3) / 4);
+}
+
+function getRollBoost() {
+  if (bestRollTier <= 0) return { m: 1, e: 0 };
+  return nPow(1.001, bestRollTier);
+}
+
+function toggleRollSidebar() {
+  document.getElementById("rollSidebar").classList.toggle("closed");
+}
+
+function renderRollSprite(tier) {
+  const box = document.getElementById("rollSpritePreview");
+  if (!box) return;
+  box.innerHTML = "";
+  if (tier <= 0) return;
+
+  const fileNum = Math.floor((tier - 1) / 100) + 1;
+  const localIdx = (tier - 1) % 100;
+  const col = localIdx % 10;
+  const row = Math.floor(localIdx / 10);
+  const scale = 128 / 256; // 0.5 scale for 128px preview box
+
+  const img = document.createElement("div");
+  img.style.width = (2560 * scale) + "px";
+  img.style.height = (2560 * scale) + "px";
+  img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
+  img.style.backgroundSize = (2560 * scale) + "px auto";
+  img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
+  box.appendChild(img);
+}
+
+function doCosmicRoll() {
+  const cost = getRollCost();
+  if (!nGte(coins, cost)) return;
+
+  coins = nSub(coins, cost);
+  rollsBought++;
+
+  const u = Math.max(1e-16, Math.random());
+  const rolledTier = Math.max(1, Math.floor(-Math.log(u) / Math.log(5)));
+  const odds = nPow(5, rolledTier);
+
+  const lastEl = document.getElementById("rollLastResult");
+  if (rolledTier > bestRollTier) {
+    bestRollTier = rolledTier;
+    renderRollSprite(bestRollTier);
+    if (lastEl) lastEl.innerHTML = `✨ <strong style="color:#ffd700;">NEW BEST! Tier ${rolledTier}</strong><br>(1 in ${fNumRouter(odds)})`;
+  } else {
+    if (lastEl) lastEl.innerHTML = `Rolled <strong>Tier ${rolledTier}</strong><br>(1 in ${fNumRouter(odds)})`;
+  }
+
+  saveLocal();
+  renderRollUI();
+  render();
+}
+
+function renderRollUI() {
+  const cost = getRollCost();
+  const boost = getRollBoost();
+  const btn = document.getElementById("rollBtn");
+  if (btn) {
+    btn.innerText = "ROLL (KOSZT: " + fNumRouter(cost) + ")";
+    btn.disabled = !nGte(coins, cost);
+  }
+  const tabTier = document.getElementById("rollBtnTier");
+  if (tabTier) tabTier.innerText = bestRollTier;
+
+  const bestText = document.getElementById("rollBestText");
+  const oddsText = document.getElementById("rollOddsText");
+  if (bestRollTier > 0 && bestText && oddsText) {
+    const odds = nPow(5, bestRollTier);
+    bestText.innerText = `Tier ${bestRollTier} (${fNumRouter(boost)}x Coins/s)`;
+    oddsText.innerText = `Odds: 1 in ${fNumRouter(odds)}`;
+  }
+}
 
 // Render
 function render(){
