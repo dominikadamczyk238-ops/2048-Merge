@@ -682,8 +682,8 @@ let selected=null;
 let maxTileInRun=parseInt(localStorage.getItem("micronym_run_best"))||1;
 let bestTileAllTime=parseInt(localStorage.getItem("micronym_best"))||maxTileInRun;
 try { const savedCoins=localStorage.getItem("micronym_coins"); if(savedCoins){const parts=savedCoins.split("e");if(parts.length===2)coins=nNew(parseFloat(parts[0]),parseInt(parts[1]));} } catch(e){}
-  let rollsBought = parseInt(localStorage.getItem("micronym_rolls")) || 0;
-let bestRollTier = parseInt(localStorage.getItem("micronym_best_roll")) || 0;
+  let rollsBought = parseInt(localStorage.getItem("micronym_rolls"));
+let bestRollTier = parseInt(localStorage.getItem("micronym_best_roll"));
 
 let Income={m:0,e:0};
 
