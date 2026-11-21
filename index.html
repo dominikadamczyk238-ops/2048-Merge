@@ -850,7 +850,7 @@ renderRollSprite(bestRollTier);
 if (lastEl) lastEl.innerHTML = `<strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
 
 } else {
-if (lastEl) lastEl.innerHTML = Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
+if (lastEl) lastEl.innerHTML = `Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
 }
 saveLocal();
 renderRollUI();
@@ -870,8 +870,8 @@ const bestText = document.getElementById("rollBestText");
 const oddsText = document.getElementById("rollOddsText");
 if (bestRollTier.m > 0 && bestText && oddsText) {
 const odds = nPow(5, nToFloat(bestRollTier));
-bestText.innerText = Tier ${fNumRouter(bestRollTier)} (${fBoost(boost)}x Coins/s);
-oddsText.innerText = Odds: 1 in ${fNumRouter(odds)};
+bestText.innerText = `Tier ${fNumRouter(bestRollTier)} (${fBoost(boost)}x Coins/s)`;
+oddsText.innerText = `Odds: 1 in ${fNumRouter(odds)}`;
 }
 }
 // Render
@@ -942,4 +942,3 @@ render();
 </script>
 </body>
 </html>
-
