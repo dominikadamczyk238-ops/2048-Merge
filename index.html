@@ -232,7 +232,7 @@
 <div id="rollSidebar" class="closed">
   <h2>🎲 Cosmic Roll (1 / 5ⁿ)</h2>
 
-  <button id="luckUpBtn" onclick="upgradeRollLuck()" style="width:100%; margin-top:8px; background:#3a86ff; color:#fff; padding:10px; font-size:12px;">
+  <button id="luckUpBtn" onclick="buyLuck()" style="width:100%; margin-top:8px; background:#3a86ff; color:#fff; padding:10px; font-size:12px;">
     🍀 LUCK: 4.99^0 (KOSZT: 5.62)
   </button>
 
@@ -387,11 +387,11 @@ IsotopeNotation.chemicalElements = IsotopeNotation._generateSortedIsotopes();
 class FullEnglishNotation {
   constructor() {
     this.basicIllions = [
-      "million", "billion", "trillion", "quadrillion", "quintillion", 
+      "thousand", "million", "billion", "trillion", "quadrillion", "quintillion", 
       "sextillion", "septillion", "octillion", "nonillion", "decillion"
     ];
 
-    this.units = ["", "un", "duo", "tres", "quattuor", "quin", "se", "septem", "octo", "novem"];
+    this.units = ["", "un", "duo", "tre", "quattuor", "quin", "se", "septe", "octo", "nove"];
     this.tens = ["", "deci", "viginti", "triginti", "quadraginti", "quinquaginti", "sexaginti", "septuaginti", "octoginti", "nonaginti"];
     this.hundreds = ["", "centi", "ducenti", "trecenti", "quadringenti", "quingenti", "sescenti", "septingenti", "octingenti", "nongenti"];
   }
@@ -422,26 +422,32 @@ class FullEnglishNotation {
     }
 
     let tempIndex = illionIndex;
-    let segments = [];
+    const segments = [];
     while (tempIndex > 0) {
       segments.push(tempIndex % 1000);
       tempIndex = Math.floor(tempIndex / 1000);
     }
 
-    let illionName = "";
-    for (let i = 0; i < segments.length; i++) {
-      let segName = this._getSegmentName(segments[i]);
-      if (segName !== "") {
-        if (i === 0) {
-          illionName = segName + "llion";
+    const parts = [];
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const seg = segments[i];
+      if (i > 0) {
+        if (seg === 0) continue;
+        const segPrefix = seg === 1 ? "" : this._getSegmentName(seg);
+        const milliTier = "milli".repeat(i);
+        parts.push(segPrefix + milliTier);
+      } else {
+        if (seg === 0) {
+          parts[parts.length - 1] += "llion";
+        } else if (seg < this.basicIllions.length) {
+          parts.push(this.basicIllions[seg]);
         } else {
-          let milliPrefix = "milli-".repeat(i);
-          illionName = segName + milliPrefix + (illionName ? " " + illionName : "llion");
+          parts.push(this._getSegmentName(seg) + "llion");
         }
       }
     }
 
-    return illionName.replace("illionllion", "illion");
+    return parts.join("-");
   }
 
   format(bigNumber) {
@@ -483,6 +489,7 @@ class FullEnglishNotation {
     return `${mantissaInWords} ${illionName}`;
   }
 }
+
 
 let notationMode = "scientific";
 const RomanFormatter = new Roman();
