@@ -825,7 +825,7 @@ function getRollBoost() {
 
 function getLuckCost() {
   // 5^n coins (Level 0 -> 1 costs 5^0 = 1 coin, Level 1 -> 2 costs 5^1 = 5 coins, etc.)
-  return nPow(5, nToFloat(luckLevel));
+  return nPow(1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000, nToFloat(luckLevel));
 }
 
 function getLuckMult() {
