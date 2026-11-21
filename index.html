@@ -719,7 +719,7 @@ function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};u
 const nMul = (a, b) => nNew(a.m * b.m, a.e + b.e);
 
 function getRollCost() {
-  return nPow(10, (rollsBought * 1.001 + 3) / 4);
+  return nPow(10, (rollsBought * 0 + 3) / 4);
 }
 let rollLuckLevel = parseInt(localStorage.getItem("micronym_roll_luck")) || 0;
 
