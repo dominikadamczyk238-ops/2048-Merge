@@ -506,13 +506,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Big Number Math
-const nNew=(m,e)=>{if(m===0)return{m:0,e:0};const c=Math.floor(Math.log10(Math.abs(m)));return{m:m/Math.pow(10,c),e:e+c};};
+const nNew=(m,e)=>{if(m===0||isNaN(m))return{m:0,e:0};const c=Math.floor(Math.log10(Math.abs(m)));return{m:m/Math.pow(10,c),e:e+c};};
 const nAdd=(a,b)=>{if(a.m===0)return b;if(b.m===0)return a;const d=a.e-b.e;if(d>15)return a;if(d<-15)return b;return nNew(a.m*Math.pow(10,d)+b.m,b.e);};
 const nSub=(a,b)=>{const d=a.e-b.e;if(d>15)return a;if(d<-15)return nNew(-b.m,b.e);return nNew(a.m*Math.pow(10,d)-b.m,b.e);};
+const nMul=(a,b)=>nNew(a.m*b.m,a.e+b.e);
+const nDiv=(a,b)=>b.m===0?{m:0,e:0}:nNew(a.m/b.m,a.e-b.e);
 const nGte=(a,b)=>{if(a.e!==b.e)return a.e>b.e;return a.m>=b.m;};
 const nPow=(base,exponent)=>{if(exponent===0)return{m:1,e:0};const t=exponent*Math.log10(base);const e=Math.floor(t);return nNew(Math.pow(10,t-e),e);};
+const nToFloat=n=>n.e>300?Infinity:n.m*Math.pow(10,n.e);
+const nParse=(str,fallback={m:0,e:0})=>{if(!str)return fallback;const p=str.split("e");if(p.length===2&&!isNaN(parseFloat(p[0]))&&!isNaN(parseInt(p[1])))return nNew(parseFloat(p[0]),parseInt(p[1]));const num=parseFloat(str);return !isNaN(num)&&num>0?nNew(num,0):fallback;};
 const fNum=n=>{if(n.m===0)return"0";if(n.e<4)return Math.floor(n.m*Math.pow(10,n.e)).toString();return n.m.toFixed(2)+"e"+n.e;};
-const fBoost = n => n.e < 4 ? (n.m * Math.pow(10, n.e)).toFixed(3) : fNumRouter(n);
+const fBoost=n=>n.e<4?(n.m*Math.pow(10,n.e)).toFixed(3):fNumRouter(n);
 
 // ==========================================
 // MUSIC SYSTEM (1, 100, 500, 1000, and every 500 up to 10K)
@@ -629,7 +633,6 @@ function toggleAchSidebar() {
 function renderAchievements() {
   const listEl = document.getElementById("achList");
   if (!listEl) return;
-  const total = ACHIEVEMENTS_DATA.length;
   const unlockedCount = ACHIEVEMENTS_DATA.filter(a => unlockedAchievements[a.id]).length;
 
   document.getElementById("achBtnCount").innerText = unlockedCount;
@@ -654,14 +657,16 @@ function renderAchievements() {
 
 function checkAchievements() {
   const spawn = getSpawnTier();
-  const topTile = Math.max(spawn, bestTileAllTime, maxTileInRun, ...grid);
+  const bestAllFloat = nToFloat(bestTileAllTime);
+  const maxRunFloat = nToFloat(maxTileInRun);
+  const topTile = Math.max(spawn, bestAllFloat, maxRunFloat, ...grid);
 
   if (topTile >= 666) unlockAchievement("deviler");
   if (topTile >= 777) unlockAchievement("godder");
   if (topTile >= 1000) unlockAchievement("kilo");
   if (topTile >= 1024) unlockAchievement("broken_limit");
   if (topTile >= 2048) unlockAchievement("dubroken_limit");
-  if (topTile === 2137 || grid.includes(2137) || bestTileAllTime >= 2137) unlockAchievement("popic_deathbed");
+  if (topTile === 2137 || grid.includes(2137) || bestAllFloat >= 2137) unlockAchievement("popic_deathbed");
   if (topTile >= 3100) unlockAchievement("tribroken_limit");
 
   if (nGte(coins, { m: 1, e: 33 })) unlockAchievement("wealthy");
@@ -673,178 +678,267 @@ function checkAchievements() {
   updateMusicSystem(topTile);
 }
 
-// Game State
-let coins={m:0,e:0};
-let upgradeTier=parseInt(localStorage.getItem("micronym_upgrade"))||0;
-let grid=Array(64).fill(1);
-try { const savedGrid=JSON.parse(localStorage.getItem("micronym_grid")); if(Array.isArray(savedGrid)&&savedGrid.length===64&&savedGrid.every(t=>Number.isInteger(t)&&t>=0)) grid=savedGrid; } catch(e){}
-let selected=null;
-let maxTileInRun=parseInt(localStorage.getItem("micronym_run_best"))||1;
-let bestTileAllTime=parseInt(localStorage.getItem("micronym_best"))||maxTileInRun;
-try { const savedCoins=localStorage.getItem("micronym_coins"); if(savedCoins){const parts=savedCoins.split("e");if(parts.length===2)coins=nNew(parseFloat(parts[0]),parseInt(parts[1]));} } catch(e){}
-  let rollsBought = parseInt(localStorage.getItem("micronym_rolls"));
-let bestRollTier = parseInt(localStorage.getItem("micronym_best_roll"));
+// Game State (100% BigNum)
+let coins = nParse(localStorage.getItem("micronym_coins"), { m: 0, e: 0 });
+let upgradeTier = nParse(localStorage.getItem("micronym_upgrade"), { m: 0, e: 0 });
+let grid = Array(64).fill(1);
+try { const savedGrid = JSON.parse(localStorage.getItem("micronym_grid")); if (Array.isArray(savedGrid) && savedGrid.length === 64 && savedGrid.every(t => Number.isInteger(t) && t >= 0)) grid = savedGrid; } catch (e) {}
+let selected = null;
+let maxTileInRun = nParse(localStorage.getItem("micronym_run_best"), { m: 1, e: 0 });
+let bestTileAllTime = nParse(localStorage.getItem("micronym_best"), maxTileInRun);
+let rollsBought = nParse(localStorage.getItem("micronym_rolls"), { m: 0, e: 0 });
+let bestRollTier = nParse(localStorage.getItem("micronym_best_roll"), { m: 0, e: 0 });
+let Income = { m: 0, e: 0 };
 
-let Income={m:0,e:0};
-
-function getBase(){ return Math.max(3.02); }
-function getCost(){ const power=nPow(getBase(),upgradeTier); const level=Math.max(1,upgradeTier); const divisor=Math.max(1,Math.log(level*Math.log(level+Math.pow(11,Math.log10(level)))+1)); return nNew(power.m*10000/divisor,power.e); }
-function getSpawnTier(){ return upgradeTier+1; }
-function saveLocal(){ localStorage.setItem("micronym_coins",coins.m+"e"+coins.e); localStorage.setItem("micronym_upgrade",upgradeTier); localStorage.setItem("micronym_grid",JSON.stringify(grid)); localStorage.setItem("micronym_run_best",maxTileInRun); localStorage.setItem("micronym_best",bestTileAllTime); }
-function fillBoard(){ const spawn=getSpawnTier(); grid.forEach((x,i)=>{ if(x===0) grid[i]=spawn; if(grid[i]>maxTileInRun) maxTileInRun=grid[i]; }); if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; }
-
-let mergeAllCooldown=false;
-function mergeAll(){
-  if(mergeAllCooldown) return; mergeAllCooldown=true; let merged=true;
-  while(merged){ merged=false; outer:for(let a=0;a<grid.length;a++){ if(grid[a]===0) continue; for(let b=a+1;b<grid.length;b++){ if(grid[b]===grid[a]&&grid[b]>0){ const next=grid[a]+1; grid[a]=0;grid[b]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; merged=true;break outer; } } } }
-  selected=null;fillBoard();checkAchievements();saveLocal();render(); setTimeout(()=>{mergeAllCooldown=false;},10000);
+function getBase() { return 3.02; }
+function getCost() {
+  const exp = nToFloat(upgradeTier);
+  const power = nPow(getBase(), exp);
+  const level = Math.max(1, exp);
+  const divisor = Math.max(1, Math.log(level * Math.log(level + Math.pow(11, Math.log10(level))) + 1));
+  return nNew(power.m * 10000 / divisor, power.e);
 }
-document.addEventListener("keydown",(e)=>{ if(e.key.toLowerCase()==="m"&&!e.repeat) mergeAll(); });
+function getSpawnTier() { return Math.floor(nToFloat(upgradeTier)) + 1; }
 
-function clickTile(index){
-  const from=selected;const to=grid[index];
-  if(from===null){if(to>0)selected=index;render();return;}
-  if(from===index){selected=null;render();return;}
-  if(from!==null&&grid[from]===to&&to>0){ const next=grid[from]+1; grid[from]=0;grid[index]=next; if(next>maxTileInRun) maxTileInRun=next; if(maxTileInRun>bestTileAllTime) bestTileAllTime=maxTileInRun; selected=null;fillBoard();checkAchievements();saveLocal();render();return; }
-  if(to===0){grid[index]=grid[from];grid[from]=0;selected=null;saveLocal();render();return;}
-  selected=to>0?index:null;render();
-}
-function buyUpgrade(){ const cost=getCost(); if(!nGte(coins,cost)) return; coins=nSub(coins,cost);upgradeTier++; const spawn=getSpawnTier(); grid.forEach((x,i)=>{if(x>0&&x<spawn)grid[i]=spawn;}); fillBoard();checkAchievements();saveLocal();render(); }
-function resetGame(){ if(!confirm("Zresetować run?")) return; coins={m:0,e:0};upgradeTier=0;grid=Array(64).fill(1);selected=null;maxTileInRun=1;bestTileAllTime=1; currentTrackMilestone=0; fillBoard();checkAchievements();saveLocal();render(); }
-// ==========================================
-// COSMIC ROLL SYSTEM (1 / 5^n, Cost: 10^((n*7.5+3)/4), Boost: 1.001^tier)
-// ==========================================
-
-
-const nMul = (a, b) => nNew(a.m * b.m, a.e + b.e);
-
-function getRollCost() {
-  return nPow(10, (rollsBought * 0 + 3) / 4);
-}
-let rollLuckLevel = parseInt(localStorage.getItem("micronym_roll_luck")) || 0;
-
-function getRollLuckCost() {
-  return nPow(10, (rollLuckLevel * 7.5 + 3) / 4);
+function saveLocal() {
+  localStorage.setItem("micronym_coins", coins.m + "e" + coins.e);
+  localStorage.setItem("micronym_upgrade", upgradeTier.m + "e" + upgradeTier.e);
+  localStorage.setItem("micronym_grid", JSON.stringify(grid));
+  localStorage.setItem("micronym_run_best", maxTileInRun.m + "e" + maxTileInRun.e);
+  localStorage.setItem("micronym_best", bestTileAllTime.m + "e" + bestTileAllTime.e);
+  localStorage.setItem("micronym_rolls", rollsBought.m + "e" + rollsBought.e);
+  localStorage.setItem("micronym_best_roll", bestRollTier.m + "e" + bestRollTier.e);
 }
 
-function upgradeRollLuck() {
-  const cost = getRollLuckCost();
-  if (!nGte(coins, cost)) return;
-  coins = nSub(coins, cost);
-  rollLuckLevel++;
-  saveLocal();
-  render();
-}
-
-function getRollBoost() {
-  if (bestRollTier <= 0) return { m: 1, e: 0 };
-  return nPow(1.5, bestRollTier);
-}
-
-function toggleRollSidebar() {
-  document.getElementById("rollSidebar").classList.toggle("closed");
-}
-
-function renderRollSprite(tier) {
-  const box = document.getElementById("rollSpritePreview");
-  if (!box) return;
-  box.innerHTML = "";
-  if (tier <= 0) return;
-
-  const fileNum = Math.floor((tier - 1) / 100) + 1;
-  const localIdx = (tier - 1) % 100;
-  const col = localIdx % 10;
-  const row = Math.floor(localIdx / 10);
-  const scale = 128 / 256; // 0.5 scale for 128px preview box
-
-  const img = document.createElement("div");
-  img.style.width = (2560 * scale) + "px";
-  img.style.height = (2560 * scale) + "px";
-  img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
-  img.style.backgroundSize = (2560 * scale) + "px auto";
-  img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
-  box.appendChild(img);
-}
-
-function doCosmicRoll() {
-  const cost = getRollCost();
-  if (!nGte(coins, cost)) return;
-
-  coins = nSub(coins, cost);
-  rollsBought++;
-
-  const u = Math.max(1e-16, Math.random());
-
-  const log5Luck = rollLuckLevel * (Math.log(1) / Math.log(5));
-  const rolledTier = Math.max(1, Math.floor(log5Luck - Math.log(u) / Math.log(5)));
-
-  const odds = nPow(5, rolledTier);
-
-  const lastEl = document.getElementById("rollLastResult");
-  if (rolledTier > bestRollTier) {
-    bestRollTier = rolledTier;
-    renderRollSprite(bestRollTier);
-    if (lastEl) lastEl.innerHTML = `✨ <strong style="color:#ffd700;">NEW BEST! Tier ${rolledTier}</strong><br>(1 in ${fNumRouter(odds)})`;
-  } else {
-    if (lastEl) lastEl.innerHTML = `Rolled <strong>Tier ${rolledTier}</strong><br>(1 in ${fNumRouter(odds)})`;
-  }
-
-  saveLocal();
-  renderRollUI();
-  render();
-}
-
-function renderRollUI() {
-  const cost = getRollCost();
-  const boost = getRollBoost();
-  const btn = document.getElementById("rollBtn");
-  if (btn) {
-    btn.innerText = "ROLL (KOSZT: " + fNumRouter(cost) + ")";
-    btn.disabled = !nGte(coins, cost);
-  }
-  const tabTier = document.getElementById("rollBtnTier");
-  if (tabTier) tabTier.innerText = bestRollTier;
-
-  const bestText = document.getElementById("rollBestText");
-  const oddsText = document.getElementById("rollOddsText");
-  if (bestRollTier > 0 && bestText && oddsText) {
-    const odds = nPow(5, bestRollTier);
-    bestText.innerText = `Tier ${bestRollTier} (${fNumRouter(boost)}x Coins/s)`;
-    oddsText.innerText = `Odds: 1 in ${fNumRouter(odds)}`;
-  }
-}
-
-// Render
-function render(){
-  const spawn=getSpawnTier();const cost=getCost();
-  document.body.style.background="hsl("+(bestTileAllTime-1)+", 35%, 50%)";
-  document.getElementById("s").innerText="Coins: "+fNumRouter(coins)+"\nYou get "+fNumRouter(Income)+" coin(s) per second.";
-  document.getElementById("p").innerText="SPAWN KAFELKÓW: TIER "+spawn;
-  const uBtn=document.getElementById("uBtn"); uBtn.innerText="+1 BASE BLOCK (KOSZT: "+fNumRouter(cost)+")"; uBtn.disabled=!nGte(coins,cost);
-  const board=document.getElementById("g");board.innerHTML="";
-  grid.forEach(function(tileValue,index){
-    const tile=document.createElement("div");tile.className="tile";
-    if(tileValue===0){tile.classList.add("empty");}
-    else{
-      if(selected===index) tile.classList.add("selected");
-      const tier=tileValue; const fileNum=Math.floor((tier-1)/100)+1; const localIdx=(tier-1)%100; const col=localIdx%10; const row=Math.floor(localIdx/10);
-      const displayWidth=tile.offsetWidth||128; const scale=displayWidth/256;
-      const mask=document.createElement("div"); mask.style.width=(256*scale)+"px";mask.style.height=(256*scale)+"px"; mask.style.overflow="hidden";mask.style.borderRadius="12px"; mask.style.position="absolute";mask.style.top="50%";mask.style.left="50%"; mask.style.transform="translate(-50%,-50%)";
-      const img=document.createElement("div"); img.style.width=(2560*scale)+"px";img.style.height="auto";img.style.aspectRatio="1/1"; img.style.backgroundImage="url('barrels"+fileNum+".png')"; img.style.backgroundSize=(2560*scale)+"px auto"; img.style.backgroundPosition=Math.round(-col*256*scale)+"px "+Math.round(-row*256*scale)+"px";
-      mask.appendChild(img);tile.appendChild(mask);
-    }
-    tile.onclick=(function(i){return function(){clickTile(i);};})(index); board.appendChild(tile);
+function fillBoard() {
+  const spawn = getSpawnTier();
+  grid.forEach((x, i) => {
+    if (x === 0) grid[i] = spawn;
+    const tileBN = nNew(grid[i], 0);
+    if (!nGte(maxTileInRun, tileBN)) maxTileInRun = tileBN;
   });
+  if (!nGte(bestTileAllTime, maxTileInRun)) bestTileAllTime = maxTileInRun;
 }
 
-setInterval(()=>{ let newIncome={m:0,e:0}; grid.forEach(tier=>{if(tier>0)newIncome=nAdd(newIncome,nPow(3,tier));}); Income=nNew(newIncome.m,newIncome.e); coins=nAdd(coins,Income); checkAchievements(); },1000);
-setInterval(()=>{render();},1000);
-
+let mergeAllCooldown = false;
+function mergeAll() {
+  if (mergeAllCooldown) return;
+  mergeAllCooldown = true;
+  let merged = true;
+  while (merged) {
+merged = false;
+outer: for (let a = 0; a < grid.length; a++) {
+if (grid[a] === 0) continue;
+for (let b = a + 1; b < grid.length; b++) {
+if (grid[b] === grid[a] && grid[b] > 0) {
+const next = grid[a] + 1;
+grid[a] = 0;
+grid[b] = next;
+const nextBN = nNew(next, 0);
+if (!nGte(maxTileInRun, nextBN)) maxTileInRun = nextBN;
+if (!nGte(bestTileAllTime, maxTileInRun)) bestTileAllTime = maxTileInRun;
+merged = true;
+break outer;
+}
+}
+}
+}
+selected = null;
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+setTimeout(() => { mergeAllCooldown = false; }, 10000);
+}
+document.addEventListener("keydown", (e) => { if (e.key.toLowerCase() === "m" && !e.repeat) mergeAll(); });
+function clickTile(index) {
+const from = selected;
+const to = grid[index];
+if (from === null) { if (to > 0) selected = index; render(); return; }
+if (from === index) { selected = null; render(); return; }
+if (from !== null && grid[from] === to && to > 0) {
+const next = grid[from] + 1;
+grid[from] = 0;
+grid[index] = next;
+const nextBN = nNew(next, 0);
+if (!nGte(maxTileInRun, nextBN)) maxTileInRun = nextBN;
+if (!nGte(bestTileAllTime, maxTileInRun)) bestTileAllTime = maxTileInRun;
+selected = null;
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+return;
+}
+if (to === 0) { grid[index] = grid[from]; grid[from] = 0; selected = null; saveLocal(); render(); return; }
+selected = to > 0 ? index : null;
+render();
+}
+function buyUpgrade() {
+const cost = getCost();
+if (!nGte(coins, cost)) return;
+coins = nSub(coins, cost);
+upgradeTier = nAdd(upgradeTier, { m: 1, e: 0 });
+const spawn = getSpawnTier();
+grid.forEach((x, i) => { if (x > 0 && x < spawn) grid[i] = spawn; });
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+}
+function resetGame() {
+if (!confirm("Zresetować run?")) return;
+coins = { m: 0, e: 0 };
+upgradeTier = { m: 0, e: 0 };
+grid = Array(64).fill(1);
+selected = null;
+maxTileInRun = { m: 1, e: 0 };
+currentTrackMilestone = 0;
+fillBoard();
+checkAchievements();
+saveLocal();
+render();
+}
+// ==========================================
+// COSMIC ROLL SYSTEM (100% BigNum & Permanent)
+// ==========================================
+function getRollCost() {
+const scaled = nMul(rollsBought, { m: 7.5, e: 0 });
+const plus3 = nAdd(scaled, { m: 3, e: 0 });
+const exp = nToFloat(nDiv(plus3, { m: 4, e: 0 }));
+return nPow(10, exp);
+}
+function getRollBoost() {
+if (bestRollTier.m === 0) return { m: 1, e: 0 };
+return nPow(1.5, nToFloat(bestRollTier));
+}
+function toggleRollSidebar() {
+document.getElementById("rollSidebar").classList.toggle("closed");
+}
+function renderRollSprite(tierBN) {
+const box = document.getElementById("rollSpritePreview");
+if (!box) return;
+box.innerHTML = "";
+const tier = Math.floor(nToFloat(tierBN));
+if (tier <= 0) return;
+const fileNum = Math.floor((tier - 1) / 100) + 1;
+const localIdx = (tier - 1) % 100;
+const col = localIdx % 10;
+const row = Math.floor(localIdx / 10);
+const scale = 128 / 256;
+const img = document.createElement("div");
+img.style.width = (2560 * scale) + "px";
+img.style.height = (2560 * scale) + "px";
+img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
+img.style.backgroundSize = (2560 * scale) + "px auto";
+img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
+box.appendChild(img);
+}
+function doCosmicRoll() {
+const cost = getRollCost();
+if (!nGte(coins, cost)) return;
+coins = nSub(coins, cost);
+rollsBought = nAdd(rollsBought, { m: 1, e: 0 });
+const u = Math.max(1e-16, Math.random());
+const rolledTierNum = Math.max(1, Math.floor(-Math.log(u) / Math.log(5)));
+const rolledTierBN = nNew(rolledTierNum, 0);
+const odds = nPow(5, rolledTierNum);
+const lastEl = document.getElementById("rollLastResult");
+if (!nGte(bestRollTier, rolledTierBN)) {
+bestRollTier = rolledTierBN;
+renderRollSprite(bestRollTier);
+if (lastEl) lastEl.innerHTML = ✨ <strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
+} else {
+if (lastEl) lastEl.innerHTML = Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
+}
+saveLocal();
+renderRollUI();
+render();
+}
+function renderRollUI() {
+const cost = getRollCost();
+const boost = getRollBoost();
+const btn = document.getElementById("rollBtn");
+if (btn) {
+btn.innerText = "ROLL (KOSZT: " + fNumRouter(cost) + ")";
+btn.disabled = !nGte(coins, cost);
+}
+const tabTier = document.getElementById("rollBtnTier");
+if (tabTier) tabTier.innerText = fNumRouter(bestRollTier);
+const bestText = document.getElementById("rollBestText");
+const oddsText = document.getElementById("rollOddsText");
+if (bestRollTier.m > 0 && bestText && oddsText) {
+const odds = nPow(5, nToFloat(bestRollTier));
+bestText.innerText = Tier ${fNumRouter(bestRollTier)} (${fBoost(boost)}x Coins/s);
+oddsText.innerText = Odds: 1 in ${fNumRouter(odds)};
+}
+}
+// Render
+function render() {
+const spawn = getSpawnTier();
+const cost = getCost();
+document.body.style.background = "hsl(" + (nToFloat(bestTileAllTime) - 1) + ", 35%, 50%)";
+document.getElementById("s").innerText = "Coins: " + fNumRouter(coins) + "\nYou get " + fNumRouter(Income) + " coin(s) per second.";
+document.getElementById("p").innerText = "SPAWN KAFELKÓW: TIER " + spawn;
+const uBtn = document.getElementById("uBtn");
+uBtn.innerText = "+1 BASE BLOCK (KOSZT: " + fNumRouter(cost) + ")";
+uBtn.disabled = !nGte(coins, cost);
+renderRollUI();
+const board = document.getElementById("g");
+board.innerHTML = "";
+grid.forEach(function(tileValue, index) {
+const tile = document.createElement("div");
+tile.className = "tile";
+if (tileValue === 0) {
+tile.classList.add("empty");
+} else {
+if (selected === index) tile.classList.add("selected");
+const tier = tileValue;
+const fileNum = Math.floor((tier - 1) / 100) + 1;
+const localIdx = (tier - 1) % 100;
+const col = localIdx % 10;
+const row = Math.floor(localIdx / 10);
+const displayWidth = tile.offsetWidth || 128;
+const scale = displayWidth / 256;
+const mask = document.createElement("div");
+mask.style.width = (256 * scale) + "px";
+mask.style.height = (256 * scale) + "px";
+mask.style.overflow = "hidden";
+mask.style.borderRadius = "12px";
+mask.style.position = "absolute";
+mask.style.top = "50%";
+mask.style.left = "50%";
+mask.style.transform = "translate(-50%,-50%)";
+const img = document.createElement("div");
+img.style.width = (2560 * scale) + "px";
+img.style.height = "auto";
+img.style.aspectRatio = "1/1";
+img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
+img.style.backgroundSize = (2560 * scale) + "px auto";
+img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
+mask.appendChild(img);
+tile.appendChild(mask);
+}
+tile.onclick = (function(i) { return function() { clickTile(i); }; })(index);
+board.appendChild(tile);
+});
+}
+setInterval(() => {
+let newIncome = { m: 0, e: 0 };
+grid.forEach(tier => { if (tier > 0) newIncome = nAdd(newIncome, nPow(3, tier)); });
+newIncome = nMul(newIncome, getRollBoost());
+Income = nNew(newIncome.m, newIncome.e);
+coins = nAdd(coins, Income);
+checkAchievements();
+}, 1000);
+setInterval(() => { render(); }, 1000);
 if (grid.every(v => v === 0)) fillBoard();
 renderAchievements();
 checkAchievements();
+renderRollSprite(bestRollTier);
 saveLocal();
 render();
 </script>
 </body>
 </html>
+
