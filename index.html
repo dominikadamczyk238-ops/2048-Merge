@@ -738,7 +738,7 @@ function upgradeRollLuck() {
 
 function getRollBoost() {
   if (bestRollTier <= 0) return { m: 1, e: 0 };
-  return nPow(1.001, bestRollTier);
+  return nPow(1.5, bestRollTier);
 }
 
 function toggleRollSidebar() {
@@ -775,7 +775,7 @@ function doCosmicRoll() {
 
   const u = Math.max(1e-16, Math.random());
 
-  const log5Luck = rollLuckLevel * (Math.log(4.99) / Math.log(5));
+  const log5Luck = rollLuckLevel * (Math.log(1) / Math.log(5));
   const rolledTier = Math.max(1, Math.floor(log5Luck - Math.log(u) / Math.log(5)));
 
   const odds = nPow(5, rolledTier);
