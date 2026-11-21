@@ -774,7 +774,7 @@ function doCosmicRoll() {
   rollsBought++;
 
   const u = Math.max(1e-16, Math.random());
-   const u = Math.max(1e-16, Math.random());
+
   const log5Luck = rollLuckLevel * (Math.log(4.99) / Math.log(5));
   const rolledTier = Math.max(1, Math.floor(log5Luck - Math.log(u) / Math.log(5)));
 
