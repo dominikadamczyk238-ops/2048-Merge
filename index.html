@@ -688,6 +688,7 @@ let maxTileInRun = nParse(localStorage.getItem("micronym_run_best"), { m: 1, e: 
 let bestTileAllTime = nParse(localStorage.getItem("micronym_best"), maxTileInRun);
 let rollsBought = nParse(localStorage.getItem("micronym_rolls"), { m: 0, e: 0 });
 let bestRollTier = nParse(localStorage.getItem("micronym_best_roll"), { m: 0, e: 0 });
+  let luckLevel = nParse(localStorage.getItem("micronym_luck"), { m: 0, e: 0 });
 let Income = { m: 0, e: 0 };
 
 function getBase() { return 3.02; }
@@ -708,6 +709,7 @@ function saveLocal() {
   localStorage.setItem("micronym_best", bestTileAllTime.m + "e" + bestTileAllTime.e);
   localStorage.setItem("micronym_rolls", rollsBought.m + "e" + rollsBought.e);
   localStorage.setItem("micronym_best_roll", bestRollTier.m + "e" + bestRollTier.e);
+    localStorage.setItem("micronym_luck", luckLevel.m + "e" + luckLevel.e);
 }
 
 function fillBoard() {
@@ -800,80 +802,118 @@ saveLocal();
 render();
 }
 // ==========================================
-// COSMIC ROLL SYSTEM (100% BigNum & Permanent)
+// COSMIC ROLL & LUCK SYSTEM (100% BigNum & Permanent)
 // ==========================================
 function getRollCost() {
-const scaled = nMul(rollsBought, { m: 0, e: 0 });
-const plus3 = nAdd(scaled, { m: 3, e: 0 });
-const exp = nToFloat(nDiv(plus3, { m: 4, e: 0 }));
-return nPow(10, exp);
+  const scaled = nMul(rollsBought, { m: 0, e: 0 });
+  const plus3 = nAdd(scaled, { m: 3, e: 0 });
+  const exp = nToFloat(nDiv(plus3, { m: 4, e: 0 }));
+  return nPow(10, exp);
 }
-function getRollBoost() {
-if (bestRollTier.m === 0) return { m: 1, e: 0 };
-return nPow(1.5, nToFloat(bestRollTier));
-}
-function toggleRollSidebar() {
-document.getElementById("rollSidebar").classList.toggle("closed");
-}
-function renderRollSprite(tierBN) {
-const box = document.getElementById("rollSpritePreview");
-if (!box) return;
-box.innerHTML = "";
-const tier = Math.floor(nToFloat(tierBN));
-if (tier <= 0) return;
-const fileNum = Math.floor((tier - 1) / 100) + 1;
-const localIdx = (tier - 1) % 100;
-const col = localIdx % 10;
-const row = Math.floor(localIdx / 10);
-const scale = 128 / 256;
-const img = document.createElement("div");
-img.style.width = (2560 * scale) + "px";
-img.style.height = (2560 * scale) + "px";
-img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
-img.style.backgroundSize = (2560 * scale) + "px auto";
-img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
-box.appendChild(img);
-}
-function doCosmicRoll() {
-const cost = getRollCost();
-if (!nGte(coins, cost)) return;
-coins = nSub(coins, cost);
-rollsBought = nAdd(rollsBought, { m: 1, e: 0 });
-const u = Math.max(1e-16, Math.random());
-const rolledTierNum = Math.max(1, Math.floor(-Math.log(u) / Math.log(5)));
-const rolledTierBN = nNew(rolledTierNum, 0);
-const odds = nPow(5, rolledTierNum);
-const lastEl = document.getElementById("rollLastResult");
-if (!nGte(bestRollTier, rolledTierBN)) {
-bestRollTier = rolledTierBN;
-renderRollSprite(bestRollTier);
-if (lastEl) lastEl.innerHTML = `<strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
 
-} else {
-if (lastEl) lastEl.innerHTML = `Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
+function getRollBoost() {
+  if (bestRollTier.m === 0) return { m: 1, e: 0 };
+  return nPow(1.5, nToFloat(bestRollTier));
 }
-saveLocal();
-renderRollUI();
-render();
+
+function getLuckCost() {
+  // 5^n coins (Level 0 -> 1 costs 5^0 = 1 coin, Level 1 -> 2 costs 5^1 = 5 coins, etc.)
+  return nPow(5, nToFloat(luckLevel));
 }
+
+function getLuckMult() {
+  // Each Luck level makes rare tiers 2x easier to roll
+  return Math.pow(2, nToFloat(luckLevel));
+}
+
+function buyLuck() {
+  const cost = getLuckCost();
+  if (!nGte(coins, cost)) return;
+  coins = nSub(coins, cost);
+  luckLevel = nAdd(luckLevel, { m: 1, e: 0 });
+  saveLocal();
+  renderRollUI();
+  render();
+}
+
+function toggleRollSidebar() {
+  document.getElementById("rollSidebar").classList.toggle("closed");
+}
+
+function renderRollSprite(tierBN) {
+  const box = document.getElementById("rollSpritePreview");
+  if (!box) return;
+  box.innerHTML = "";
+  const tier = Math.floor(nToFloat(tierBN));
+  if (tier <= 0) return;
+  const fileNum = Math.floor((tier - 1) / 100) + 1;
+  const localIdx = (tier - 1) % 100;
+  const col = localIdx % 10;
+  const row = Math.floor(localIdx / 10);
+  const scale = 128 / 256;
+  const img = document.createElement("div");
+  img.style.width = (2560 * scale) + "px";
+  img.style.height = (2560 * scale) + "px";
+  img.style.backgroundImage = "url('barrels" + fileNum + ".png')";
+  img.style.backgroundSize = (2560 * scale) + "px auto";
+  img.style.backgroundPosition = Math.round(-col * 256 * scale) + "px " + Math.round(-row * 256 * scale) + "px";
+  box.appendChild(img);
+}
+
+function doCosmicRoll() {
+  const cost = getRollCost();
+  if (!nGte(coins, cost)) return;
+  coins = nSub(coins, cost);
+  rollsBought = nAdd(rollsBought, { m: 1, e: 0 });
+
+  // Apply Luck multiplier to the RNG roll
+  const rawU = Math.max(1e-16, Math.random());
+  const u = Math.max(1e-16, rawU / getLuckMult());
+
+  const rolledTierNum = Math.max(1, Math.floor(-Math.log(u) / Math.log(5)));
+  const rolledTierBN = nNew(rolledTierNum, 0);
+  const odds = nPow(5, rolledTierNum);
+  const lastEl = document.getElementById("rollLastResult");
+
+  if (!nGte(bestRollTier, rolledTierBN)) {
+    bestRollTier = rolledTierBN;
+    renderRollSprite(bestRollTier);
+    if (lastEl) lastEl.innerHTML = `<strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
+  } else {
+    if (lastEl) lastEl.innerHTML = `Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
+  }
+  saveLocal();
+  renderRollUI();
+  render();
+}
+
 function renderRollUI() {
-const cost = getRollCost();
-const boost = getRollBoost();
-const btn = document.getElementById("rollBtn");
-if (btn) {
-btn.innerText = "ROLL (KOSZT: " + fNumRouter(cost) + ")";
-btn.disabled = !nGte(coins, cost);
+  const cost = getRollCost();
+  const boost = getRollBoost();
+  const btn = document.getElementById("rollBtn");
+  if (btn) {
+    btn.innerText = "ROLL (KOSZT: " + fNumRouter(cost) + ")";
+    btn.disabled = !nGte(coins, cost);
+  }
+
+  const luckBtn = document.getElementById("luckBtn");
+  if (luckBtn) {
+    const lCost = getLuckCost();
+    luckBtn.innerText = `LUCK LVL ${fNumRouter(luckLevel)} [${getLuckMult()}x] (KOSZT: ${fNumRouter(lCost)})`;
+    luckBtn.disabled = !nGte(coins, lCost);
+  }
+
+  const tabTier = document.getElementById("rollBtnTier");
+  if (tabTier) tabTier.innerText = fNumRouter(bestRollTier);
+  const bestText = document.getElementById("rollBestText");
+  const oddsText = document.getElementById("rollOddsText");
+  if (bestRollTier.m > 0 && bestText && oddsText) {
+    const odds = nPow(5, nToFloat(bestRollTier));
+    bestText.innerText = `Tier ${fNumRouter(bestRollTier)} (${fBoost(boost)}x Coins/s)`;
+    oddsText.innerText = `Odds: 1 in ${fNumRouter(odds)}`;
+  }
 }
-const tabTier = document.getElementById("rollBtnTier");
-if (tabTier) tabTier.innerText = fNumRouter(bestRollTier);
-const bestText = document.getElementById("rollBestText");
-const oddsText = document.getElementById("rollOddsText");
-if (bestRollTier.m > 0 && bestText && oddsText) {
-const odds = nPow(5, nToFloat(bestRollTier));
-bestText.innerText = `Tier ${fNumRouter(bestRollTier)} (${fBoost(boost)}x Coins/s)`;
-oddsText.innerText = `Odds: 1 in ${fNumRouter(odds)}`;
-}
-}
+
 // Render
 function render() {
 const spawn = getSpawnTier();
