@@ -847,7 +847,8 @@ const lastEl = document.getElementById("rollLastResult");
 if (!nGte(bestRollTier, rolledTierBN)) {
 bestRollTier = rolledTierBN;
 renderRollSprite(bestRollTier);
-if (lastEl) lastEl.innerHTML =  <strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
+if (lastEl) lastEl.innerHTML = `<strong style="color:#ffd700;">NEW BEST! Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)})`;
+
 } else {
 if (lastEl) lastEl.innerHTML = Rolled <strong>Tier ${fNumRouter(rolledTierBN)}</strong><br>(1 in ${fNumRouter(odds)});
 }
